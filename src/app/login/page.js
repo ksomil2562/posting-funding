@@ -65,7 +65,7 @@ export default function LoginPage() {
           transition={{ repeat: Infinity, duration: 2 }}
           className="text-3xl font-bold text-center"
         >
-          SEW
+          PAYMENTS
         </motion.h1>
 
         {/* Subtitle */}

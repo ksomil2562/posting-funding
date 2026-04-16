@@ -64,7 +64,7 @@ export default function Dashboard() {
         <div>
           <div className="flex items-center gap-3 mb-10">
             <img
-              src="/logo.png"
+              src="/llogo.png"
               className="h-12 w-auto hover:scale-105 transition-transform duration-300"
             />
           </div>

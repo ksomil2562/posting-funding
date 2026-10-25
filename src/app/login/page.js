@@ -24,11 +24,14 @@ export default function LoginPage() {
     e.preventDefault();
     playSound();
 
-    if (id === "somil" && password === "somil2026") {
-      router.push("/dashboard");
-    } else {
-      setError("Invalid credentials. Please try again.");
-    }
+if (
+  (id === "somil" && password === "somil2026") ||
+  (id === "tushar" && password === "tushar123")
+) {
+  router.push("/dashboard");
+} else {
+  setError("Invalid credentials");
+}
   };
 
   return (

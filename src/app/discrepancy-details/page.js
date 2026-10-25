@@ -70,14 +70,16 @@ export default function DiscrepancyPage() {
   const postAll = () => simulateLoading();
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white p-10">
+    <div className="min-h-screen bg-slate-50 p-10 text-slate-800">
 
       {/* HEADER */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-semibold">Unposted Transactions</h1>
-          <p className="text-gray-400">
-           MID002 - 10 April 2026  |  Batch Close Time: 9:00 AM – 9:00 PM ET
+          <h1 className="text-3xl font-semibold text-slate-900">
+            Unposted Transactions
+          </h1>
+          <p className="text-slate-500">
+            MID002 - 10 April 2026 | Batch Close Time: 9:00 AM – 9:00 PM ET
           </p>
         </div>
 
@@ -85,7 +87,7 @@ export default function DiscrepancyPage() {
           <button
             disabled={loading}
             onClick={postSelected}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm disabled:opacity-50"
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white transition hover:bg-blue-700 disabled:opacity-50"
           >
             Post Selected
           </button>
@@ -93,7 +95,7 @@ export default function DiscrepancyPage() {
           <button
             disabled={loading}
             onClick={postAll}
-            className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm disabled:opacity-50"
+            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm text-white transition hover:bg-emerald-700 disabled:opacity-50"
           >
             Post All
           </button>
@@ -101,41 +103,41 @@ export default function DiscrepancyPage() {
       </div>
 
       {/* SUMMARY */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <div className="bg-white/5 p-5 rounded-xl border border-white/10">
-          <p className="text-gray-400 text-sm">Total</p>
-          <h2 className="text-2xl font-semibold">{total}</h2>
+      <div className="mb-6 grid grid-cols-1 gap-6 md:grid-cols-3">
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-sm text-slate-500">Total</p>
+          <h2 className="text-2xl font-semibold text-slate-900">{total}</h2>
         </div>
 
-        <div className="bg-red-500/10 p-5 rounded-xl border border-red-500/20">
-          <p className="text-red-400 text-sm">Failed</p>
-          <h2 className="text-2xl font-semibold">{failed}</h2>
+        <div className="rounded-xl border border-red-200 bg-red-50 p-5">
+          <p className="text-sm text-red-700">Failed</p>
+          <h2 className="text-2xl font-semibold text-red-700">{failed}</h2>
         </div>
 
-        <div className="bg-green-500/10 p-5 rounded-xl border border-green-500/20">
-          <p className="text-green-400 text-sm">Posted</p>
-          <h2 className="text-2xl font-semibold">{posted}</h2>
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
+          <p className="text-sm text-emerald-700">Posted</p>
+          <h2 className="text-2xl font-semibold text-emerald-700">{posted}</h2>
         </div>
       </div>
 
       {/* SEARCH + FILTER */}
-      <div className="flex gap-4 mb-4">
+      <div className="mb-4 flex flex-wrap gap-4">
         <input
           type="text"
           placeholder="Search Transaction ID..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg w-64"
+          className="w-64 rounded-lg border border-slate-200 bg-white px-4 py-2 text-slate-800 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
         />
 
         {["All", "Failed", "Posted"].map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`px-4 py-2 rounded-lg text-sm ${
+            className={`rounded-lg px-4 py-2 text-sm transition ${
               filter === f
-                ? "bg-blue-600"
-                : "bg-gray-800 hover:bg-gray-700"
+                ? "bg-blue-600 text-white"
+                : "border border-slate-200 bg-white text-slate-700 hover:bg-blue-50 hover:text-blue-700"
             }`}
           >
             {f}
@@ -145,19 +147,19 @@ export default function DiscrepancyPage() {
 
       {/* LOADER */}
       {loading && (
-        <div className="mb-6 flex items-center gap-3 bg-blue-500/10 border border-blue-500/20 px-4 py-3 rounded-lg">
-          <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-blue-400 text-sm">
+        <div className="mb-6 flex items-center gap-3 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"></div>
+          <p className="text-sm text-blue-700">
             Posting transactions to CIS...
           </p>
         </div>
       )}
 
       {/* TABLE */}
-      <div className="rounded-2xl border border-gray-800 overflow-hidden">
+      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full text-left">
-          
-          <thead className="bg-gray-900 text-gray-300 text-sm">
+
+          <thead className="bg-slate-100 text-sm text-slate-600">
             <tr>
               <th className="p-4"></th>
               <th className="p-4">Transaction ID</th>
@@ -175,7 +177,7 @@ export default function DiscrepancyPage() {
               <motion.tr
                 key={index}
                 whileHover={{ scale: 1.01 }}
-                className="border-t border-gray-800 hover:bg-gray-900 transition"
+                className="border-t border-slate-200 transition hover:bg-blue-50/50"
               >
                 {/* Checkbox */}
                 <td className="p-4">
@@ -183,31 +185,32 @@ export default function DiscrepancyPage() {
                     type="checkbox"
                     checked={row.selected}
                     onChange={() => toggleSelect(index)}
+                    className="accent-blue-600"
                   />
                 </td>
 
-                <td className="p-4">{row.id}</td>
+                <td className="p-4 font-medium text-slate-800">{row.id}</td>
                 <td className="p-4">${row.amount}</td>
 
                 {/* Status */}
                 <td className="p-4">
-                  <span className="px-3 py-1 rounded-full text-sm bg-red-500/20 text-red-400">
+                  <span className="rounded-full bg-red-100 px-3 py-1 text-sm text-red-700">
                     {row.status}
                   </span>
                 </td>
 
                 <td className="p-4">5</td>
 
-                <td className="p-4 text-gray-300">{row.reason}</td>
+                <td className="p-4 text-slate-600">{row.reason}</td>
 
-                <td className="p-4 text-gray-400">{row.time}</td>
+                <td className="p-4 text-slate-500">{row.time}</td>
 
                 {/* Action */}
                 <td className="p-4">
                   <button
                     disabled={loading}
                     onClick={postSingle}
-                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm disabled:opacity-50"
+                    className="rounded-lg bg-blue-600 px-3 py-1 text-sm text-white transition hover:bg-blue-700 disabled:opacity-50"
                   >
                     Post
                   </button>

@@ -33,38 +33,40 @@ export default function PostingMonitoring() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white p-10">
-      
+    <div className="min-h-screen bg-slate-50 p-10 text-slate-800">
+
       {/* HEADER */}
-      <h1 className="text-3xl font-semibold mb-2">
+      <h1 className="mb-2 text-3xl font-semibold text-slate-900">
         Posting Monitoring
       </h1>
 
-      <p className="text-gray-400 mb-6">
+      <p className="mb-6 text-slate-500">
         
       </p>
 
       {/* SUMMARY CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        
-        <div className="bg-white/5 p-5 rounded-xl border border-white/10">
-          <p className="text-gray-400 text-sm">Total MIDs</p>
-          <h2 className="text-2xl font-semibold">{total}</h2>
+      <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-4">
+
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-sm text-slate-500">Total MIDs</p>
+          <h2 className="text-2xl font-semibold text-slate-900">{total}</h2>
         </div>
 
-        <div className="bg-green-500/10 p-5 rounded-xl border border-green-500/20">
-          <p className="text-green-400 text-sm">Success</p>
-          <h2 className="text-2xl font-semibold">{success}</h2>
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
+          <p className="text-sm text-emerald-700">Success</p>
+          <h2 className="text-2xl font-semibold text-emerald-700">{success}</h2>
         </div>
 
-        <div className="bg-red-500/10 p-5 rounded-xl border border-red-500/20">
-          <p className="text-red-400 text-sm">Failed</p>
-          <h2 className="text-2xl font-semibold">{failed}</h2>
+        <div className="rounded-xl border border-red-200 bg-red-50 p-5">
+          <p className="text-sm text-red-700">Failed</p>
+          <h2 className="text-2xl font-semibold text-red-700">{failed}</h2>
         </div>
 
-        <div className="bg-yellow-500/10 p-5 rounded-xl border border-yellow-500/20">
-          <p className="text-yellow-400 text-sm">Total Discrepancy</p>
-          <h2 className="text-2xl font-semibold">{totalDiscrepancy}</h2>
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
+          <p className="text-sm text-amber-700">Total Discrepancy</p>
+          <h2 className="text-2xl font-semibold text-amber-700">
+            {totalDiscrepancy}
+          </h2>
         </div>
       </div>
 
@@ -74,10 +76,10 @@ export default function PostingMonitoring() {
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`px-4 py-1 rounded-lg text-sm ${
+            className={`rounded-lg px-4 py-1 text-sm transition ${
               filter === f
-                ? "bg-blue-600"
-                : "bg-gray-800 hover:bg-gray-700"
+                ? "bg-blue-600 text-white"
+                : "border border-slate-200 bg-white text-slate-700 hover:bg-blue-50 hover:text-blue-700"
             }`}
           >
             {f}
@@ -86,10 +88,10 @@ export default function PostingMonitoring() {
       </div>
 
       {/* TABLE */}
-      <div className="overflow-x-auto rounded-xl border border-gray-800">
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full text-left">
-          
-          <thead className="bg-gray-900 text-gray-300 text-sm">
+
+          <thead className="bg-slate-100 text-sm text-slate-600">
             <tr>
               <th className="p-4">MID</th>
               <th className="p-4">Payment Report Count</th>
@@ -103,17 +105,17 @@ export default function PostingMonitoring() {
             {filteredData.map((row, index) => (
               <tr
                 key={index}
-                className="border-t border-gray-800 hover:bg-gray-900 transition"
+                className="border-t border-slate-200 transition hover:bg-blue-50/50"
               >
-                <td className="p-4">{row.mid}</td>
+                <td className="p-4 font-medium text-slate-800">{row.mid}</td>
                 <td className="p-4">{row.payment}</td>
                 <td className="p-4">{row.deposit}</td>
 
                 <td
-                  className={`p-4 font-semibold cursor-pointer ${
+                  className={`cursor-pointer p-4 font-semibold ${
                     row.discrepancy === 0
-                      ? "text-green-400"
-                      : "text-red-400 underline"
+                      ? "text-emerald-600"
+                      : "text-red-600 underline"
                   }`}
                   onClick={() =>
                     row.discrepancy !== 0 &&
@@ -125,10 +127,10 @@ export default function PostingMonitoring() {
 
                 <td className="p-4">
                   <span
-                    className={`px-3 py-1 rounded-full text-sm ${
+                    className={`rounded-full px-3 py-1 text-sm ${
                       row.status === "Success"
-                        ? "bg-green-500/20 text-green-400"
-                        : "bg-red-500/20 text-red-400"
+                        ? "bg-emerald-100 text-emerald-700"
+                        : "bg-red-100 text-red-700"
                     }`}
                   >
                     {row.status}

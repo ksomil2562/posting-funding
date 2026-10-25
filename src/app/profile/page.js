@@ -7,13 +7,13 @@ export default function ProfilePage() {
   const router = useRouter();
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center p-10 relative">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex items-center justify-center p-10 relative">
 
       {/* HOME BUTTON */}
       <div className="absolute top-6 left-6">
         <button
           onClick={() => router.push("/dashboard")}
-          className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-lg hover:bg-gray-800 transition text-sm"
+          className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-lg hover:bg-blue-50 hover:text-blue-700 transition text-sm text-slate-700"
         >
           <Home size={16} />
           Home
@@ -24,26 +24,26 @@ export default function ProfilePage() {
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-3xl bg-white/5 border border-white/10 rounded-2xl p-8 shadow-xl"
+        className="w-full max-w-3xl bg-white border border-slate-200 rounded-2xl p-8 shadow-sm"
       >
 
         {/* HEADER */}
         <div className="flex items-center gap-6 mb-8">
 
           {/* Avatar */}
-          <div className="w-20 h-20 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-2xl font-bold">
+          <div className="w-20 h-20 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-2xl font-bold text-white">
             SK
           </div>
 
           {/* Info */}
           <div>
-            <h1 className="text-2xl font-semibold">
+            <h1 className="text-2xl font-semibold text-slate-900">
               Somil Kumar
             </h1>
-            <p className="text-gray-400">
-              Trainee - Product Management
+            <p className="text-slate-500">
+              Product Analyst
             </p>
-            <p className="text-blue-400 text-sm mt-1">
+            <p className="text-blue-600 text-sm mt-1">
               Payments Team
             </p>
           </div>
@@ -52,32 +52,32 @@ export default function ProfilePage() {
         {/* DETAILS */}
         <div className="grid md:grid-cols-3 gap-6">
 
-          <div className="bg-white/5 p-5 rounded-xl border border-white/10">
+          <div className="bg-slate-50 p-5 rounded-xl border border-slate-200">
             <div className="flex items-center gap-2 mb-2">
-              <User size={16} />
-              <p className="text-sm text-gray-400">Role</p>
+              <User size={16} className="text-slate-500" />
+              <p className="text-sm text-slate-500">Role</p>
             </div>
-            <h3 className="font-medium">
-              Product Management Trainee
+            <h3 className="font-medium text-slate-900">
+              Product Analyst 
             </h3>
           </div>
 
-          <div className="bg-white/5 p-5 rounded-xl border border-white/10">
+          <div className="bg-slate-50 p-5 rounded-xl border border-slate-200">
             <div className="flex items-center gap-2 mb-2">
-              <Briefcase size={16} />
-              <p className="text-sm text-gray-400">Team</p>
+              <Briefcase size={16} className="text-slate-500" />
+              <p className="text-sm text-slate-500">Team</p>
             </div>
-            <h3 className="font-medium">
+            <h3 className="font-medium text-slate-900">
               Payments Team
             </h3>
           </div>
 
-          <div className="bg-white/5 p-5 rounded-xl border border-white/10">
+          <div className="bg-slate-50 p-5 rounded-xl border border-slate-200">
             <div className="flex items-center gap-2 mb-2">
-              <Shield size={16} />
-              <p className="text-sm text-gray-400">Access</p>
+              <Shield size={16} className="text-slate-500" />
+              <p className="text-sm text-slate-500">Access</p>
             </div>
-            <h3 className="font-medium">
+            <h3 className="font-medium text-slate-900">
               Internal Dashboard User
             </h3>
           </div>
@@ -85,7 +85,7 @@ export default function ProfilePage() {
         </div>
 
         {/* FOOTER */}
-        <div className="mt-8 text-center text-gray-500 text-sm">
+        <div className="mt-8 text-center text-slate-500 text-sm">
           Managing payment monitoring, reconciliation, and funding workflows.
         </div>
 

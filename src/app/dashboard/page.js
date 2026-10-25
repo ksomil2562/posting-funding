@@ -1,4 +1,5 @@
 "use client";
+
 import { motion } from "framer-motion";
 import {
   LayoutDashboard,
@@ -7,6 +8,7 @@ import {
   User,
   Activity,
   DollarSign,
+  ChevronRight,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 
@@ -16,118 +18,197 @@ export default function Dashboard() {
 
   const cards = [
     {
-      title: "Posting Monitoring",
-      desc: "Track transaction posting status",
-      icon: <Activity size={44} />,
-      link: "/posting-monitoring",
+      title: "Monthly Invoice Report",
+      desc: "View monthly invoice reports and summaries",
+      icon: <Activity size={26} />,
+      link: "/Invoice",
     },
     {
-      title: "Reconciliation Monitoring",
-      desc: "Match and validate transactions",
-      icon: <BarChart3 size={44} />,
-      link: "/reconcilation-monitoring", // ✅ fixed typo
-    },
-    {
-      title: "Funding Monitoring",
+      title: "Transfer Summary Report",
       desc: "Monitor fund flow and balances",
-      icon: <DollarSign size={44} />,
+      icon: <DollarSign size={26} />,
       link: "/funding-monitoring",
+    },
+    {
+      title: "Transaction Health Report",
+      desc: "View all records and monitor transaction health",
+      icon: <BarChart3 size={26} />,
+      link: "/reconcilation-monitoring",
+    },
+    {
+      title: "Posting Monitoring Report",
+      desc: "Track transaction posting status",
+      icon: <Activity size={26} />,
+      link: "/posting-monitoring",
     },
   ];
 
   const menu = [
     {
       name: "Dashboard",
-      icon: <LayoutDashboard size={18} />,
+      icon: <LayoutDashboard size={19} />,
       path: "/dashboard",
     },
     {
       name: "Analytics",
-      icon: <BarChart3 size={18} />,
+      icon: <BarChart3 size={19} />,
       path: "/analytics",
     },
     {
       name: "About",
-      icon: <Info size={18} />,
+      icon: <Info size={19} />,
       path: "/about",
     },
   ];
 
   return (
-    
-    <div className="flex min-h-screen bg-gray-950 text-white">
-
+    <div className="flex h-screen overflow-hidden bg-slate-50 text-slate-800">
       {/* SIDEBAR */}
-      <div className="w-64 bg-black/40 backdrop-blur-xl border-r border-gray-800 p-6 flex flex-col justify-between">
-
-        {/* Logo */}
+      <aside className="flex w-60 shrink-0 flex-col justify-between border-r border-slate-200 bg-white px-4 py-5">
         <div>
-          <div className="flex items-center gap-3 mb-10">
+          {/* LOGO */}
+          <div
+            onClick={() => router.push("/dashboard")}
+            className="mb-7 flex cursor-pointer items-center gap-3 px-2"
+          >
             <img
-              src="/llogo.png"
-              className="h-12 w-auto hover:scale-105 transition-transform duration-300"
+              src="/logo.png"
+              alt="Logo"
+              className="h-9 w-auto object-contain transition-transform duration-300 hover:scale-105"
             />
           </div>
 
-          {/* Menu */}
-          <div className="space-y-3 text-sm">
-            {menu.map((item, index) => (
-              <div
-                key={index}
-                onClick={() => router.push(item.path)}
-                className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition ${
-                  pathname === item.path
-                    ? "bg-blue-600/20 text-blue-400"
-                    : "hover:bg-gray-800"
-                }`}
-              >
-                {item.icon}
-                {item.name}
-              </div>
-            ))}
-          </div>
+          {/* NAVIGATION */}
+          <p className="mb-3 px-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+            Main Menu
+          </p>
+
+          <nav className="space-y-2">
+            {menu.map((item) => {
+              const isActive = pathname === item.path;
+
+              return (
+                <button
+                  key={item.path}
+                  type="button"
+                  onClick={() => router.push(item.path)}
+                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-all duration-200 ${
+                    isActive
+                      ? "bg-blue-50 text-blue-700 shadow-sm"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-blue-700"
+                  }`}
+                >
+                  <span
+                    className={
+                      isActive ? "text-blue-600" : "text-slate-400"
+                    }
+                  >
+                    {item.icon}
+                  </span>
+
+                  <span className="flex-1">{item.name}</span>
+
+                  {isActive && (
+                    <span className="h-5 w-1 rounded-full bg-blue-600" />
+                  )}
+                </button>
+              );
+            })}
+          </nav>
         </div>
 
-        {/* Profile */}
-    <div
-  onClick={() => router.push("/profile")}
-  className="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition hover:bg-gray-800"
->
-  <User size={18} />
-  Profile
-</div>
-      </div>
+        {/* PROFILE */}
+        <button
+          type="button"
+          onClick={() => router.push("/profile")}
+          className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left transition hover:border-blue-200 hover:bg-blue-50"
+        >
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 text-blue-700">
+            <User size={19} />
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-slate-800">Profile</p>
+            <p className="text-xs text-slate-500">Account settings</p>
+          </div>
+
+          <ChevronRight size={17} className="text-slate-400" />
+        </button>
+      </aside>
 
       {/* MAIN CONTENT */}
-      <div className="flex-1">
-
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {/* TOP BAR */}
-        <div className="flex justify-between items-center px-10 py-5 border-b border-gray-800">
-          <h1 className="text-2xl font-semibold">
-            Payment Monitoring Dashboard
-          </h1>
-          <div className="text-sm text-gray-400">
-            Welcome, Somil
+        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-6 py-4">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-slate-900">
+              Payment Monitoring Dashboard
+            </h1>
+            <p className="mt-1 text-sm text-slate-500">
+              Monitor your payment operations and reports in one place.
+            </p>
           </div>
-        </div>
 
-        {/* CARDS */}
-        <div className="p-12 grid grid-cols-1 md:grid-cols-3 gap-10">
-          {cards.map((card, index) => (
-            <motion.div
-              key={index}
-              whileHover={{ scale: 1.05, y: -6 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => router.push(card.link)} // ✅ no new tab
-              className="cursor-pointer p-10 rounded-3xl bg-white/5 border border-white/10 shadow-xl hover:shadow-blue-500/30 transition-all min-h-[220px] flex flex-col justify-center"
-            >
-              <div className="mb-4">{card.icon}</div>
-              <h3 className="text-xl font-semibold">{card.title}</h3>
-              <p className="text-gray-400 mt-3 text-base">{card.desc}</p>
-            </motion.div>
-          ))}
+          <div className="flex shrink-0 items-center gap-3 rounded-full border border-blue-100 bg-blue-50 px-4 py-2">
+            <div className="h-2 w-2 rounded-full bg-blue-600" />
+            <span className="text-sm font-medium text-slate-700">
+              Welcome, Somil
+            </span>
+          </div>
+        </header>
+
+        {/* PAGE CONTENT */}
+        <div className="flex flex-1 flex-col justify-center px-6 py-5">
+          {/* INTRODUCTION */}
+          <section className="mb-6 shrink-0">
+            <div className="mb-2 flex items-center gap-2">
+              <div className="h-7 w-1 rounded-full bg-blue-600" />
+              <h2 className="text-lg font-bold text-slate-900">
+                Reports Overview
+              </h2>
+            </div>
+
+            <p className="ml-3 text-sm text-slate-500">
+              Select a report below to view details and track payment activity.
+            </p>
+          </section>
+
+          {/* REPORT CARDS */}
+          <section className="grid shrink-0 grid-cols-1 gap-4 sm:grid-cols-2">
+            {cards.map((card) => (
+              <motion.button
+                key={card.link}
+                type="button"
+                whileHover={{ y: -3 }}
+                whileTap={{ scale: 0.985 }}
+                transition={{ duration: 0.2 }}
+                onClick={() => router.push(card.link)}
+                className="group flex min-h-[170px] flex-col rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition-all duration-200 hover:border-blue-200 hover:shadow-lg hover:shadow-blue-100/60 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              >
+                <div className="mb-4 flex w-full items-start justify-between">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-700 transition-colors duration-200 group-hover:bg-blue-600 group-hover:text-white">
+                    {card.icon}
+                  </div>
+
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-400 transition-all duration-200 group-hover:border-blue-600 group-hover:bg-blue-600 group-hover:text-white">
+                    <ChevronRight size={17} />
+                  </span>
+                </div>
+
+                <h3 className="text-base font-semibold leading-snug text-slate-900 transition-colors group-hover:text-blue-700">
+                  {card.title}
+                </h3>
+
+                <p className="mt-2 flex-1 text-sm leading-5 text-slate-500">
+                  {card.desc}
+                </p>
+
+                <div className="mt-4 h-1 w-10 rounded-full bg-blue-100 transition-all duration-300 group-hover:w-16 group-hover:bg-blue-600" />
+              </motion.button>
+            ))}
+          </section>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

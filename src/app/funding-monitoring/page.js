@@ -1,6 +1,7 @@
 
 "use client";
-
+import { Download } from "lucide-react";
+import * as XLSX from "xlsx";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -12,6 +13,7 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
 } from "lucide-react";
 
 export default function FundingMonitoring() {
@@ -29,7 +31,9 @@ export default function FundingMonitoring() {
   ];
 
   const [filter, setFilter] = useState("All");
-  const [search, setSearch] = useState("");
+  const [midSearch, setMidSearch] = useState("");
+  const [selectedMID, setSelectedMID] = useState("All");
+  const [midDropdownOpen, setMidDropdownOpen] = useState(false);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [sortDirection, setSortDirection] = useState(null);
@@ -136,8 +140,8 @@ export default function FundingMonitoring() {
   const filtered = useMemo(() => {
     const result = processed.filter((row) => {
       const matchesFilter = filter === "All" || row.status === filter;
-      const matchesSearch = row.mid.toLowerCase().includes(search.toLowerCase().trim());
-      return matchesFilter && matchesSearch;
+      const matchesMID = selectedMID === "All" || row.mid === selectedMID;
+      return matchesFilter && matchesMID;
     });
 
     if (sortDirection) {
@@ -149,7 +153,37 @@ export default function FundingMonitoring() {
     }
 
     return result;
-  }, [processed, filter, search, sortDirection]);
+  }, [processed, filter, selectedMID, sortDirection]);
+
+  const exportToExcel = () => {
+    const exportRows = filtered.map((row) => ({
+      MID: row.mid,
+      Deposit: row.deposit,
+      "ECP Return": row.ecp,
+      Chargeback: row.chargeback,
+      "Expected Funding": row.expected,
+      "Previous Due Balance": row.previousDue,
+      "Actual Funding": row.actual,
+      Discrepancy: row.discrepancy,
+      Status: row.status,
+      "Start Date Filter": startDate || "All dates",
+      "End Date Filter": endDate || "All dates",
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportRows);
+    worksheet["!cols"] = [
+      { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 16 },
+      { wch: 20 }, { wch: 24 }, { wch: 18 }, { wch: 16 },
+      { wch: 16 }, { wch: 20 }, { wch: 20 },
+    ];
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Funding Monitoring");
+    XLSX.writeFile(workbook, `funding-monitoring-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
+  const midOptions = processed
+    .map((row) => row.mid)
+    .filter((mid) => mid.toLowerCase().includes(midSearch.trim().toLowerCase()));
 
   const success = processed.filter((row) => row.status === "Successful").length;
   const mismatch = processed.filter((row) => row.status === "Mismatch").length;
@@ -301,15 +335,97 @@ export default function FundingMonitoring() {
 
         {/* Search and filters */}
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <input
-            type="text"
-            placeholder="Search MID..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full max-w-xs rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
-          />
+          <div className="relative w-full max-w-xs">
+            <button
+              type="button"
+              onClick={() => setMidDropdownOpen((open) => !open)}
+              className="flex w-full items-center justify-between gap-3 rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-sm outline-none hover:border-blue-500 focus:border-blue-500"
+              aria-expanded={midDropdownOpen}
+            >
+              <span className={selectedMID === "All" ? "text-slate-500" : "font-medium text-slate-800"}>
+                {selectedMID === "All" ? "Filter by MID (All)" : selectedMID}
+              </span>
+              <ChevronDown size={16} className="shrink-0 text-slate-500" />
+            </button>
 
-          <div className="flex flex-wrap gap-2">
+            {midDropdownOpen && (
+              <div className="absolute left-0 top-[calc(100%+6px)] z-30 w-full rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+                <input
+                  autoFocus
+                  type="text"
+                  placeholder="Type to find a MID..."
+                  value={midSearch}
+                  onChange={(e) => setMidSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") setMidDropdownOpen(false);
+                    if (e.key === "Enter" && midOptions.length > 0) {
+                      setSelectedMID(midOptions[0]);
+                      setMidDropdownOpen(false);
+                    }
+                  }}
+                  className="mb-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-500"
+                />
+                <div className="max-h-52 overflow-y-auto">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedMID("All");
+                      setMidSearch("");
+                      setMidDropdownOpen(false);
+                    }}
+                    className={`w-full rounded-md px-3 py-2 text-left text-sm hover:bg-blue-50 ${
+                      selectedMID === "All" ? "bg-blue-50 font-semibold text-blue-700" : "text-slate-700"
+                    }`}
+                  >
+                    All MIDs
+                  </button>
+                  {midOptions.map((mid) => (
+                    <button
+                      type="button"
+                      key={mid}
+                      onClick={() => {
+                        setSelectedMID(mid);
+                        setMidSearch("");
+                        setMidDropdownOpen(false);
+                      }}
+                      className={`w-full rounded-md px-3 py-2 text-left text-sm hover:bg-blue-50 ${
+                        selectedMID === mid ? "bg-blue-50 font-semibold text-blue-700" : "text-slate-700"
+                      }`}
+                    >
+                      {mid}
+                    </button>
+                  ))}
+                  {midOptions.length === 0 && (
+                    <p className="px-3 py-4 text-center text-xs text-slate-500">No matching MID found</p>
+                  )}
+                </div>
+                {selectedMID !== "All" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedMID("All");
+                      setMidSearch("");
+                      setMidDropdownOpen(false);
+                    }}
+                    className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50"
+                  >
+                    Clear MID filter
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={exportToExcel}
+              disabled={filtered.length === 0}
+              className="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Download size={16} />
+              Export Excel
+            </button>
             {["All", "Successful", "Mismatch"].map((item) => (
               <button
                 key={item}
@@ -406,7 +522,10 @@ export default function FundingMonitoring() {
         </div>
 
         <div className="mt-3 flex flex-wrap justify-between gap-2 text-xs text-slate-500">
-          <span>Showing {filtered.length} of {processed.length} MIDs</span>
+          <span>
+            Showing {filtered.length} of {processed.length} MIDs
+            {selectedMID !== "All" ? ` · MID: ${selectedMID}` : ""}
+          </span>
           <span>
             {startDate && endDate
               ? `${startDate} to ${endDate}`

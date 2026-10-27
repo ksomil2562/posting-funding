@@ -11,8 +11,12 @@ import {
   FileText,
   Receipt,
   DollarSign,
+  Home,
+  Download,
+  FileSpreadsheet,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import * as XLSX from "xlsx";
 
 const invoiceData = {
   "2026-10": {
@@ -343,6 +347,7 @@ const invoiceData = {
   },
 };
 
+
 const categoryOrder = [
   "Cards",
   "Wallets/Digital",
@@ -363,7 +368,8 @@ const currency = (value) =>
     maximumFractionDigits: 2,
   }).format(value || 0);
 
-const integer = (value) => Number(value || 0).toLocaleString("en-US");
+const integer = (value) =>
+  Number(value || 0).toLocaleString("en-US");
 
 export default function MonthlyInvoiceReport() {
   const router = useRouter();
@@ -382,11 +388,10 @@ export default function MonthlyInvoiceReport() {
     mid.toLowerCase().includes(midSearch.toLowerCase())
   );
 
-  const invoiceRows = useMemo(() => {
-    if (!selectedMID) return [];
-
-    return invoiceData[month]?.[selectedMID] || [];
-  }, [month, selectedMID]);
+  const invoiceRows = useMemo(
+    () => (selectedMID ? invoiceData[month]?.[selectedMID] || [] : []),
+    [month, selectedMID]
+  );
 
   const totalRevenue = invoiceRows.reduce(
     (sum, row) => sum + row.revenue,
@@ -429,435 +434,477 @@ export default function MonthlyInvoiceReport() {
     setMidDropdownOpen(false);
   };
 
+  // Export the selected invoice into a properly structured Excel workbook.
+  const exportToExcel = () => {
+    if (!selectedMID || invoiceRows.length === 0) return;
+
+    const rows = [
+      ["Monthly Invoice Report"],
+      ["Month", monthOptions.find((m) => m.value === month)?.label || month],
+      ["MID", selectedMID],
+      [],
+      [
+        "Category",
+        "Payment Type",
+        "Account Type",
+        "Fee per Transaction",
+        "Rate",
+        "# Transactions",
+        "# Transaction Amount",
+        "Invoice Amount",
+      ],
+    ];
+
+    groupedRows.forEach(({ category, rows: categoryRows }) => {
+      categoryRows.forEach((row) => {
+        rows.push([
+          category,
+          row.cardType ||
+            row.paymentType ||
+            (category === "Cards"
+              ? "Card"
+              : category === "E-checks"
+                ? "E-check"
+                : category === "ACH Return Fees"
+                  ? "ACH Return"
+                  : "Digital Wallet"),
+          row.accountType,
+          row.fee,
+          row.rate,
+          row.transactions,
+          row.amount,
+          row.revenue,
+        ]);
+      });
+    });
+
+    rows.push([
+      "TOTAL",
+      "",
+      "",
+      "",
+      "",
+      totalTransactions,
+      totalAmount,
+      totalRevenue,
+    ]);
+
+    const worksheet = XLSX.utils.aoa_to_sheet(rows);
+
+    worksheet["!cols"] = [
+      { wch: 22 },
+      { wch: 20 },
+      { wch: 18 },
+      { wch: 22 },
+      { wch: 12 },
+      { wch: 18 },
+      { wch: 24 },
+      { wch: 20 },
+    ];
+
+    // Format transaction amounts and invoice amounts as currency.
+    for (let r = 5; r < rows.length; r++) {
+      const amountCell = XLSX.utils.encode_cell({ r, c: 6 });
+      const invoiceCell = XLSX.utils.encode_cell({ r, c: 7 });
+
+      if (worksheet[amountCell] && typeof worksheet[amountCell].v === "number") {
+        worksheet[amountCell].z = '"$"#,##0.00';
+      }
+
+      if (worksheet[invoiceCell] && typeof worksheet[invoiceCell].v === "number") {
+        worksheet[invoiceCell].z = '"$"#,##0.00';
+      }
+
+      const feeCell = XLSX.utils.encode_cell({ r, c: 3 });
+      if (worksheet[feeCell] && typeof worksheet[feeCell].v === "number") {
+        worksheet[feeCell].z = '"$"#,##0.00';
+      }
+    }
+
+    worksheet["!autofilter"] = {
+      ref: `A5:H${rows.length - 1}`,
+    };
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Monthly Invoice");
+
+    XLSX.writeFile(
+      workbook,
+      `Invoice_${selectedMID}_${month}.xlsx`
+    );
+  };
+
   return (
-    <div className="flex min-h-screen bg-slate-50 text-slate-800">
-      {/* SIDEBAR */}
-      <aside className="hidden w-56 shrink-0 border-r border-slate-200 bg-white px-5 py-6 md:block">
-        <img
-          src="/llogo.png"
-          alt="Logo"
-          className="mb-10 h-10 w-auto"
-        />
+    <div className="min-h-screen bg-slate-50 text-slate-800">
+      {/* TOP BAR — NO SIDEBAR */}
+      <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 md:px-7">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
+            <FileText size={19} />
+          </div>
+          <div className="min-w-0">
+            <h1 className="truncate text-base font-semibold text-slate-900 md:text-lg">
+              Monthly Invoice Report
+            </h1>
+            <p className="hidden text-xs text-slate-500 sm:block">
+              Monthly billing and invoice summary
+            </p>
+          </div>
+        </div>
 
         <button
           onClick={() => router.push("/dashboard")}
-          className="flex w-full items-center gap-3 rounded-lg p-3 text-sm text-slate-600 transition hover:bg-blue-50 hover:text-blue-700"
+          className="flex shrink-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
         >
-          <ArrowLeft size={18} />
-          Back to Dashboard
+          <Home size={16} />
+          <span>Home</span>
         </button>
-      </aside>
+      </header>
 
-      {/* MAIN CONTENT */}
-      <main className="min-w-0 flex-1">
-        {/* TOP BAR */}
-        <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-4 md:px-8">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => router.push("/dashboard")}
-              aria-label="Back to dashboard"
-              className="rounded-lg p-2 text-slate-500 hover:bg-blue-50 hover:text-blue-700 md:hidden"
-            >
-              <ArrowLeft size={18} />
-            </button>
-
-            <div>
-              <h1 className="text-lg font-semibold text-slate-900 md:text-xl">
-                Monthly Invoice Report
-              </h1>
-              <p className="mt-1 text-xs text-slate-500">
-                Monthly revenue and transaction fee breakdown
-              </p>
-            </div>
+      <main className="mx-auto max-w-[1500px] space-y-4 p-3 sm:p-5 lg:p-6">
+        {/* FILTERS */}
+        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="mb-3">
+            <h2 className="text-sm font-semibold text-slate-900">
+              Invoice Filters
+            </h2>
+            <p className="mt-1 text-xs text-slate-500">
+              Select a month and one MID to view its invoice.
+            </p>
           </div>
 
-          <span className="hidden text-sm text-slate-500 sm:block">
-            Welcome, Somil
-          </span>
-        </header>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {/* MONTH */}
+            <div>
+              <label
+                htmlFor="invoice-month"
+                className="mb-1.5 block text-xs font-medium text-slate-600"
+              >
+                Invoice Month
+              </label>
 
-        <div className="space-y-5 p-4 md:p-8">
-          {/* FILTERS */}
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
-            <div className="mb-4">
-              <h2 className="text-sm font-semibold text-slate-900">
-                Invoice Filters
-              </h2>
-              <p className="mt-1 text-xs text-slate-500">
-                Choose a month, then search and select one MID to view its invoice.
-              </p>
+              <div className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5 focus-within:border-blue-400">
+                <CalendarDays size={16} className="text-blue-600" />
+                <select
+                  id="invoice-month"
+                  value={month}
+                  onChange={(e) => handleMonthChange(e.target.value)}
+                  className="w-full bg-transparent text-sm outline-none"
+                >
+                  {monthOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {/* MONTH FILTER */}
-              <div>
-                <label
-                  htmlFor="invoice-month"
-                  className="mb-2 block text-xs font-medium text-slate-600"
-                >
-                  Invoice Month
-                </label>
+            {/* MID SEARCH */}
+            <div className="relative">
+              <label
+                htmlFor="invoice-mid-search"
+                className="mb-1.5 block text-xs font-medium text-slate-600"
+              >
+                Search MID
+              </label>
 
-                <div className="flex items-center gap-3 rounded-xl border border-slate-200 px-3 py-3 transition focus-within:border-blue-400">
-                  <CalendarDays size={17} className="text-blue-600" />
+              <div
+                className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 ${
+                  midDropdownOpen
+                    ? "border-blue-400 ring-2 ring-blue-50"
+                    : "border-slate-200"
+                }`}
+              >
+                <Search size={16} className="shrink-0 text-blue-600" />
 
-                  <select
-                    id="invoice-month"
-                    value={month}
-                    onChange={(e) => handleMonthChange(e.target.value)}
-                    className="w-full bg-transparent text-sm text-slate-800 outline-none"
+                <input
+                  id="invoice-mid-search"
+                  value={midSearch}
+                  onFocus={() => setMidDropdownOpen(true)}
+                  onChange={(e) => {
+                    setMidSearch(e.target.value);
+                    setSelectedMID("");
+                    setMidDropdownOpen(true);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") setMidDropdownOpen(false);
+                    if (e.key === "Enter" && matchingMIDs.length) {
+                      handleMIDSelect(matchingMIDs[0]);
+                    }
+                  }}
+                  placeholder="Search and select one MID..."
+                  autoComplete="off"
+                  className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
+                />
+
+                {midSearch && (
+                  <button
+                    onClick={clearMID}
+                    aria-label="Clear MID"
+                    className="text-slate-400 hover:text-slate-700"
                   >
-                    {monthOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                    <X size={15} />
+                  </button>
+                )}
+
+                <button
+                  onClick={() => setMidDropdownOpen((open) => !open)}
+                  aria-label="Toggle MID list"
+                  className="text-slate-400"
+                >
+                  <ChevronDown size={15} />
+                </button>
               </div>
 
-              {/* MID SEARCH */}
-              <div className="relative">
-                <label
-                  htmlFor="invoice-mid-search"
-                  className="mb-2 block text-xs font-medium text-slate-600"
-                >
-                  Search MID
-                </label>
-
-                <div
-                  className={`flex items-center gap-3 rounded-xl border px-3 py-3 transition ${
-                    midDropdownOpen
-                      ? "border-blue-400 ring-2 ring-blue-50"
-                      : "border-slate-200"
-                  }`}
-                >
-                  <Search size={17} className="shrink-0 text-blue-600" />
-
-                  <input
-                    id="invoice-mid-search"
-                    value={midSearch}
-                    onFocus={() => {
-                      setMidSearch(selectedMID ? "" : midSearch);
-                      setMidDropdownOpen(true);
-                    }}
-                    onChange={(e) => {
-                      setMidSearch(e.target.value);
-                      setSelectedMID("");
-                      setMidDropdownOpen(true);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Escape") {
-                        setMidDropdownOpen(false);
-                      }
-
-                      if (e.key === "Enter" && matchingMIDs.length > 0) {
-                        handleMIDSelect(matchingMIDs[0]);
-                      }
-                    }}
-                    placeholder="Search by MID..."
-                    autoComplete="off"
-                    className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
+              {midDropdownOpen && (
+                <>
+                  <button
+                    aria-label="Close MID dropdown"
+                    onClick={() => setMidDropdownOpen(false)}
+                    className="fixed inset-0 z-10 cursor-default"
                   />
 
-                  {selectedMID && (
-                    <button
-                      onClick={clearMID}
-                      aria-label="Clear selected MID"
-                      className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                    >
-                      <X size={15} />
-                    </button>
-                  )}
+                  <div className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
+                    <p className="border-b border-slate-100 px-3 py-2 text-xs text-slate-500">
+                      Available MIDs ({matchingMIDs.length})
+                    </p>
 
-                  <button
-                    onClick={() => setMidDropdownOpen((open) => !open)}
-                    aria-label="Toggle MID list"
-                    className="text-slate-400"
-                  >
-                    <ChevronDown size={16} />
-                  </button>
-                </div>
-
-                {midDropdownOpen && (
-                  <>
-                    <button
-                      aria-label="Close MID search"
-                      onClick={() => setMidDropdownOpen(false)}
-                      className="fixed inset-0 z-10 cursor-default"
-                    />
-
-                    <div className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
-                      <div className="border-b border-slate-100 px-3 py-2">
-                        <p className="text-xs text-slate-500">
-                          {matchingMIDs.length} MID(s) available
+                    <div className="max-h-48 overflow-y-auto p-1">
+                      {matchingMIDs.length ? (
+                        matchingMIDs.map((mid) => (
+                          <button
+                            key={mid}
+                            onClick={() => handleMIDSelect(mid)}
+                            className="flex w-full items-center justify-between rounded-md px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700"
+                          >
+                            {mid}
+                            {selectedMID === mid && (
+                              <span className="text-xs text-blue-600">
+                                Selected
+                              </span>
+                            )}
+                          </button>
+                        ))
+                      ) : (
+                        <p className="px-3 py-4 text-center text-xs text-slate-500">
+                          No matching MIDs found.
                         </p>
-                      </div>
-
-                      <div className="max-h-56 overflow-y-auto p-1">
-                        {matchingMIDs.length > 0 ? (
-                          matchingMIDs.map((mid) => (
-                            <button
-                              key={mid}
-                              onClick={() => handleMIDSelect(mid)}
-                              className={`flex w-full items-center justify-between rounded-lg px-3 py-3 text-left text-sm transition hover:bg-blue-50 ${
-                                selectedMID === mid
-                                  ? "bg-blue-50 font-medium text-blue-700"
-                                  : "text-slate-700"
-                              }`}
-                            >
-                              <span>{mid}</span>
-
-                              {selectedMID === mid && (
-                                <span className="text-xs text-blue-600">
-                                  Selected
-                                </span>
-                              )}
-                            </button>
-                          ))
-                        ) : (
-                          <p className="px-3 py-5 text-center text-sm text-slate-500">
-                            No matching MIDs found.
-                          </p>
-                        )}
-                      </div>
+                      )}
                     </div>
-                  </>
-                )}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* NO MID SELECTED */}
+        {!selectedMID && (
+          <motion.section
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex min-h-[220px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white px-5 py-10 text-center"
+          >
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
+              <Receipt size={23} />
+            </div>
+            <h2 className="text-sm font-semibold text-slate-800">
+              No MID selected
+            </h2>
+            <p className="mt-1 text-xs text-slate-500">
+              Select a MID above to display the monthly invoice.
+            </p>
+          </motion.section>
+        )}
+
+        {/* SELECTED INVOICE */}
+        {selectedMID && (
+          <motion.section
+            key={`${month}-${selectedMID}`}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-3"
+          >
+            {/* SUMMARY */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border border-slate-200 bg-white p-3.5">
+                <p className="text-xs text-slate-500">Selected MID</p>
+                <p className="mt-1.5 text-base font-semibold text-slate-900">
+                  {selectedMID}
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-3.5">
+                <p className="text-xs text-slate-500">Total Transactions</p>
+                <p className="mt-1.5 text-base font-semibold text-slate-900">
+                  {integer(totalTransactions)}
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-3.5">
+                <p className="text-xs text-slate-500">Invoice Amount</p>
+                <p className="mt-1.5 text-base font-bold text-emerald-700">
+                  {currency(totalRevenue)}
+                </p>
               </div>
             </div>
 
-            {selectedMID && (
-              <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
-                <span className="text-xs text-slate-500">
-                  Current selection:
-                </span>
-                <span className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700">
-                  {selectedMID}
-                </span>
-                <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs text-slate-600">
-                  {monthOptions.find((option) => option.value === month)?.label}
-                </span>
-              </div>
-            )}
-          </section>
-
-          {/* EMPTY STATE */}
-          {!selectedMID && (
-            <motion.section
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex min-h-[300px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center"
-            >
-              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
-                <FileText size={27} />
-              </div>
-
-              <h2 className="text-base font-semibold text-slate-900">
-                Select a MID to view the invoice
-              </h2>
-
-              <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">
-                Select the invoice month above, then search for a MID. The
-                invoice breakdown and total revenue will appear here.
-              </p>
-            </motion.section>
-          )}
-
-          {/* INVOICE SUMMARY AND TABLE */}
-          {selectedMID && (
-            <motion.section
-              key={`${month}-${selectedMID}`}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="space-y-4"
-            >
-              {/* SUMMARY CARDS */}
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div className="rounded-xl border border-slate-200 bg-white p-4">
-                  <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <Receipt size={15} className="text-blue-600" />
-                    Selected MID
-                  </div>
-                  <p className="mt-2 text-lg font-semibold text-slate-900">
+            {/* TABLE */}
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+                <div>
+                  <h2 className="text-sm font-semibold text-slate-900">
+                    Monthly Invoice
+                  </h2>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    {monthOptions.find((option) => option.value === month)?.label}
+                    {" · "}
                     {selectedMID}
                   </p>
                 </div>
 
-                <div className="rounded-xl border border-slate-200 bg-white p-4">
-                  <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <FileText size={15} className="text-violet-600" />
-                    Total Transactions
-                  </div>
-                  <p className="mt-2 text-lg font-semibold text-slate-900">
-                    {integer(totalTransactions)}
-                  </p>
-                </div>
-
-                <div className="rounded-xl border border-slate-200 bg-white p-4">
-                  <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <DollarSign size={15} className="text-emerald-600" />
-                    Total Revenue
-                  </div>
-                  <p className="mt-2 text-lg font-semibold text-emerald-700">
-                    {currency(totalRevenue)}
-                  </p>
-                </div>
+                <button
+                  onClick={exportToExcel}
+                  disabled={!invoiceRows.length}
+                  className="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Download size={15} />
+                  Export to Excel
+                </button>
               </div>
 
-              {/* INVOICE TABLE */}
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <div className="flex flex-col gap-2 border-b border-slate-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between md:px-5">
-                  <div>
-                    <h2 className="text-base font-semibold text-slate-900">
-                      Monthly Invoice
-                    </h2>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {monthOptions.find((option) => option.value === month)?.label}
-                      {" · "}
-                      {selectedMID}
-                    </p>
-                  </div>
+              {invoiceRows.length ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[760px] table-fixed border-collapse text-center text-xs">
+                    <colgroup>
+                      <col className="w-[16%]" />
+                      <col className="w-[14%]" />
+                      <col className="w-[13%]" />
+                      <col className="w-[10%]" />
+                      <col className="w-[13%]" />
+                      <col className="w-[17%]" />
+                      <col className="w-[17%]" />
+                    </colgroup>
 
-                  <span className="w-fit rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700">
-                    Invoice Data
-                  </span>
-                </div>
+                    <thead>
+                      <tr className="bg-[#365984] text-white">
+                        {[
+                          "Category",
+                          "Account Type",
+                          "Fee per Transaction",
+                          "Rate",
+                          "# Transactions",
+                          "# Transaction Amount",
+                          "Invoice Amount",
+                        ].map((heading) => (
+                          <th
+                            key={heading}
+                            className={`border border-slate-300 px-2 py-2.5 text-center text-[11px] font-semibold ${
+                              heading === "Invoice Amount" ? "font-extrabold" : ""
+                            }`}
+                          >
+                            {heading}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
 
-                {invoiceRows.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[850px] border-collapse text-sm">
-                      <thead>
-                        <tr className="bg-[#365984] text-white">
-                          <th className="w-[165px] border border-slate-300 px-3 py-3 text-left text-xs font-semibold">
-                            Category
-                          </th>
-                          <th className="border border-slate-300 px-3 py-3 text-left text-xs font-semibold">
-                            Account Type
-                          </th>
-                          <th className="border border-slate-300 px-3 py-3 text-right text-xs font-semibold">
-                            Fee per Transaction
-                          </th>
-                          <th className="border border-slate-300 px-3 py-3 text-right text-xs font-semibold">
-                            Rate
-                          </th>
-                          <th className="border border-slate-300 px-3 py-3 text-right text-xs font-semibold">
-                            # Transactions
-                          </th>
-                          <th className="border border-slate-300 px-3 py-3 text-right text-xs font-semibold">
-                            # Transaction Amount
-                          </th>
-                          <th className="border border-slate-300 px-3 py-3 text-right text-xs font-semibold">
-                            Revenue
-                          </th>
-                        </tr>
-                      </thead>
-
-                      <tbody>
-                        {groupedRows.map((group) => (
-                          <>
-                            <tr
-                              key={`${group.category}-heading`}
-                              className="bg-slate-100"
+                    <tbody>
+                      {groupedRows.map((group) => (
+                        <>
+                          <tr
+                            key={`${group.category}-heading`}
+                            className="bg-slate-100"
+                          >
+                            <td
+                              colSpan={7}
+                              className="border border-slate-300 px-2 py-1.5 text-center text-[11px] font-bold text-slate-700"
                             >
-                              <td
-                                colSpan={7}
-                                className="border-x border-b border-slate-300 px-3 py-2 text-xs font-semibold text-slate-800"
-                              >
-                                {group.category}
+                              {group.category}
+                            </td>
+                          </tr>
+
+                          {group.rows.map((row, index) => (
+                            <tr
+                              key={`${group.category}-${row.paymentType || row.cardType || row.accountType}-${index}`}
+                              className="transition-colors hover:bg-blue-50/50"
+                            >
+                              <td className="border border-slate-200 px-2 py-2 text-center">
+                                {row.cardType ||
+                                  row.paymentType ||
+                                  (group.category === "Cards"
+                                    ? "Card"
+                                    : group.category === "E-checks"
+                                      ? "E-check"
+                                      : group.category === "ACH Return Fees"
+                                        ? "ACH Return"
+                                        : "Digital Wallet")}
+                              </td>
+
+                              <td className="border border-slate-200 px-2 py-2 text-center">
+                                {row.accountType}
+                              </td>
+
+                              <td className="border border-slate-200 px-2 py-2 text-center whitespace-nowrap">
+                                {currency(row.fee)}
+                              </td>
+
+                              <td className="border border-slate-200 px-2 py-2 text-center whitespace-nowrap">
+                                {row.rate}
+                              </td>
+
+                              <td className="border border-slate-200 px-2 py-2 text-center tabular-nums">
+                                {integer(row.transactions)}
+                              </td>
+
+                              <td className="border border-slate-200 px-2 py-2 text-center tabular-nums whitespace-nowrap">
+                                {currency(row.amount)}
+                              </td>
+
+                              <td className="border border-slate-200 px-2 py-2 text-center font-bold tabular-nums whitespace-nowrap">
+                                {currency(row.revenue)}
                               </td>
                             </tr>
+                          ))}
+                        </>
+                      ))}
 
-                            {group.rows.map((row, index) => (
-                              <tr
-                                key={`${group.category}-${row.paymentType || row.cardType || row.accountType}-${index}`}
-                                className="transition-colors hover:bg-blue-50/40"
-                              >
-                                <td className="border border-slate-200 px-3 py-3 text-xs text-slate-600">
-                                  {row.cardType ||
-                                    row.paymentType ||
-                                    (group.category === "Cards"
-                                      ? "Card"
-                                      : group.category === "Wallets/Digital"
-                                        ? "Digital Wallet"
-                                        : group.category === "E-checks"
-                                          ? "E-check"
-                                          : "ACH Return")}
-                                </td>
-
-                                <td className="border border-slate-200 px-3 py-3 text-xs text-slate-700">
-                                  {row.accountType}
-                                </td>
-
-                                <td className="whitespace-nowrap border border-slate-200 px-3 py-3 text-right text-xs text-slate-700">
-                                  {currency(row.fee)}
-                                </td>
-
-                                <td className="whitespace-nowrap border border-slate-200 px-3 py-3 text-right text-xs text-slate-700">
-                                  {row.rate}
-                                </td>
-
-                                <td className="whitespace-nowrap border border-slate-200 px-3 py-3 text-right text-xs tabular-nums text-slate-700">
-                                  {integer(row.transactions)}
-                                </td>
-
-                                <td className="whitespace-nowrap border border-slate-200 px-3 py-3 text-right text-xs tabular-nums text-slate-700">
-                                  {currency(row.amount)}
-                                </td>
-
-                                <td className="whitespace-nowrap border border-slate-200 px-3 py-3 text-right text-xs font-medium tabular-nums text-slate-800">
-                                  {currency(row.revenue)}
-                                </td>
-                              </tr>
-                            ))}
-                          </>
-                        ))}
-
-                        <tr className="bg-[#365984] font-semibold text-white">
-                          <td
-                            colSpan={4}
-                            className="border border-slate-300 px-3 py-3 text-sm"
-                          >
-                            TOTAL
-                          </td>
-                          <td className="border border-slate-300 px-3 py-3 text-right text-xs tabular-nums">
-                            {integer(totalTransactions)}
-                          </td>
-                          <td className="border border-slate-300 px-3 py-3 text-right text-xs tabular-nums">
-                            {currency(totalAmount)}
-                          </td>
-                          <td className="border border-slate-300 px-3 py-3 text-right text-sm tabular-nums">
-                            {currency(totalRevenue)}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="px-6 py-12 text-center">
-                    <FileText
-                      size={28}
-                      className="mx-auto mb-3 text-slate-300"
-                    />
-                    <p className="text-sm font-medium text-slate-700">
-                      No invoice data available
-                    </p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      There are no invoice records for this MID and month.
-                    </p>
-                  </div>
-                )}
-
-                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500 md:px-5">
-                  <span>Monthly Invoice Report</span>
-                  <span>
-                    {monthOptions.find((option) => option.value === month)?.label}
-                  </span>
+                      <tr className="bg-[#365984] font-bold text-white">
+                        <td
+                          colSpan={4}
+                          className="border border-slate-300 px-2 py-2.5 text-center"
+                        >
+                          TOTAL
+                        </td>
+                        <td className="border border-slate-300 px-2 py-2.5 text-center tabular-nums">
+                          {integer(totalTransactions)}
+                        </td>
+                        <td className="border border-slate-300 px-2 py-2.5 text-center tabular-nums">
+                          {currency(totalAmount)}
+                        </td>
+                        <td className="border border-slate-300 px-2 py-2.5 text-center font-extrabold tabular-nums whitespace-nowrap">
+                          {currency(totalRevenue)}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
+              ) : (
+                <div className="px-5 py-10 text-center text-sm text-slate-500">
+                  No invoice data available for this MID and month.
+                </div>
+              )}
+
+              <div className="flex items-center justify-between gap-2 border-t border-slate-200 bg-slate-50 px-4 py-2.5 text-[11px] text-slate-500">
+                <span>{selectedMID}</span>
+                <span>
+                  {monthOptions.find((option) => option.value === month)?.label}
+                </span>
               </div>
-            </motion.section>
-          )}
-        </div>
+            </div>
+          </motion.section>
+        )}
       </main>
     </div>
   );

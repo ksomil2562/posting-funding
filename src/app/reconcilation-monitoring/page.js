@@ -20,6 +20,9 @@ import {
   Smartphone,
   Globe,
   CreditCard,
+  MapPinned,
+  TrendingUp,
+  SlidersHorizontal,
 } from "lucide-react";
 
 const CHANNELS = ["iOS", "Android", "Web"];
@@ -33,6 +36,18 @@ const PAYMENT_METHODS = [
   "GPay",
 ];
 
+// Grouped, illustrative decline categories inspired by common Braintree
+// processor response texts/codes. Replace with actual gateway response data
+// (e.g. processorResponseCode / processorResponseText) in production.
+const DECLINE_REASONS = [
+  { key: "doNotHonor", label: "Do Not Honor", color: "bg-rose-500" },
+  { key: "insufficientFunds", label: "Insufficient Funds", color: "bg-amber-500" },
+  { key: "expiredCard", label: "Expired Card", color: "bg-violet-500" },
+  { key: "verificationFailed", label: "CVV / Verification Failed", color: "bg-blue-500" },
+];
+
+const REGIONS = ["North America", "Europe", "Asia Pacific"];
+
 // Illustrative data. Replace with your API response when integrating.
 const sampleData = [
   {
@@ -41,6 +56,7 @@ const sampleData = [
     total: 12500,
     success: 11900,
     declined: 600,
+    declineReasons: { doNotHonor: 200, insufficientFunds: 180, expiredCard: 120, verificationFailed: 100 },
     refunds: 180,
     chargebacks: 12,
     ecpReturns: 8,
@@ -58,6 +74,7 @@ const sampleData = [
     total: 9800,
     success: 9212,
     declined: 588,
+    declineReasons: { doNotHonor: 180, insufficientFunds: 190, expiredCard: 100, verificationFailed: 118 },
     refunds: 145,
     chargebacks: 7,
     ecpReturns: 11,
@@ -75,6 +92,7 @@ const sampleData = [
     total: 7600,
     success: 7144,
     declined: 456,
+    declineReasons: { doNotHonor: 140, insufficientFunds: 150, expiredCard: 80, verificationFailed: 86 },
     refunds: 96,
     chargebacks: 4,
     ecpReturns: 5,
@@ -92,6 +110,7 @@ const sampleData = [
     total: 6400,
     success: 6080,
     declined: 320,
+    declineReasons: { doNotHonor: 90, insufficientFunds: 110, expiredCard: 50, verificationFailed: 70 },
     refunds: 110,
     chargebacks: 3,
     ecpReturns: 6,
@@ -109,6 +128,7 @@ const sampleData = [
     total: 8700,
     success: 8178,
     declined: 522,
+    declineReasons: { doNotHonor: 160, insufficientFunds: 170, expiredCard: 90, verificationFailed: 102 },
     refunds: 120,
     chargebacks: 6,
     ecpReturns: 7,
@@ -126,6 +146,7 @@ const sampleData = [
     total: 9200,
     success: 8650,
     declined: 550,
+    declineReasons: { doNotHonor: 170, insufficientFunds: 180, expiredCard: 80, verificationFailed: 120 },
     refunds: 135,
     chargebacks: 5,
     ecpReturns: 9,
@@ -195,6 +216,11 @@ export default function TransactionHealthReport() {
   const [midSearch, setMidSearch] = useState("");
   const [tableSearch, setTableSearch] = useState("");
   const [midFilterOpen, setMidFilterOpen] = useState(false);
+
+  // Regional explorer filters are independent of the main date/MID filters.
+  const [regionFilter, setRegionFilter] = useState("All regions");
+  const [channelFilter, setChannelFilter] = useState("All channels");
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState("All methods");
 
   const [startDate, setStartDate] = useState("2026-10-02");
   const [endDate, setEndDate] = useState("2026-10-07");
@@ -298,6 +324,66 @@ export default function TransactionHealthReport() {
 
     return result;
   }, [filteredData]);
+
+  // Decline reason distribution uses only the currently selected date/MID data.
+  const declineReasonDistribution = useMemo(() => {
+    const result = Object.fromEntries(
+      DECLINE_REASONS.map((reason) => [reason.key, 0])
+    );
+
+    filteredData.forEach((row) => {
+      DECLINE_REASONS.forEach((reason) => {
+        result[reason.key] += row.declineReasons?.[reason.key] || 0;
+      });
+    });
+
+    return result;
+  }, [filteredData]);
+
+  // Regional explorer combines the main date/MID selection with its own
+  // region, channel and payment-method filters.
+  const regionalData = useMemo(() => {
+    return filteredData.filter((row) =>
+      (regionFilter === "All regions" || row.region === regionFilter) &&
+      (channelFilter === "All channels" || row.channel === channelFilter) &&
+      (paymentMethodFilter === "All methods" || row.paymentMethod === paymentMethodFilter)
+    );
+  }, [filteredData, regionFilter, channelFilter, paymentMethodFilter]);
+
+  const regionalSummary = useMemo(() => {
+    return regionalData.reduce((acc, row) => {
+      acc.total += row.total;
+      acc.success += row.success;
+      acc.declined += row.declined;
+      return acc;
+    }, { total: 0, success: 0, declined: 0 });
+  }, [regionalData]);
+
+  const regionalChartData = useMemo(() => {
+    const grouped = Object.fromEntries(
+      REGIONS.map((region) => [region, { region, total: 0, success: 0, declined: 0 }])
+    );
+
+    regionalData.forEach((row) => {
+      if (grouped[row.region]) {
+        grouped[row.region].total += row.total;
+        grouped[row.region].success += row.success;
+        grouped[row.region].declined += row.declined;
+      }
+    });
+
+    return Object.values(grouped).filter((item) =>
+      regionFilter === "All regions" ? true : item.region === regionFilter
+    );
+  }, [regionalData, regionFilter]);
+
+  const maxRegionalTotal = Math.max(1, ...regionalChartData.map((item) => item.total));
+
+  const resetRegionalFilters = () => {
+    setRegionFilter("All regions");
+    setChannelFilter("All channels");
+    setPaymentMethodFilter("All methods");
+  };
 
   const metrics = [
     {
@@ -975,6 +1061,174 @@ export default function TransactionHealthReport() {
                   {channel}
                 </span>
               ))}
+            </div>
+          </div>
+        </section>
+
+        {/* DECLINE REASON KPI */}
+        <section className="rounded-xl border border-slate-200 bg-white p-4">
+          <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <ShieldAlert size={17} className="text-rose-600" />
+                <h2 className="text-sm font-semibold text-slate-900">Decline Reason Analysis</h2>
+              </div>
+              <p className="mt-1 text-xs text-slate-500">
+                Common grouped Braintree-style processor decline reasons for the selected dates and MIDs.
+              </p>
+            </div>
+            <span className="text-xs text-slate-500">
+              {number(totals.declined)} declined transactions
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {DECLINE_REASONS.map((reason) => {
+              const value = declineReasonDistribution[reason.key] || 0;
+              const share = totals.declined ? (value / totals.declined) * 100 : 0;
+
+              return (
+                <div key={reason.key} className="rounded-xl border border-slate-200 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-xs font-medium text-slate-600">{reason.label}</p>
+                    <span className="text-xs font-semibold tabular-nums text-slate-500">
+                      {share.toFixed(1)}%
+                    </span>
+                  </div>
+                  <p className="mt-2 text-2xl font-semibold tabular-nums text-slate-900">
+                    {number(value)}
+                  </p>
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className={`h-full rounded-full ${reason.color}`}
+                      style={{ width: `${Math.min(100, share)}%` }}
+                    />
+                  </div>
+                  <p className="mt-2 text-[11px] text-slate-400">Share of declined transactions</p>
+                </div>
+              );
+            })}
+          </div>
+          <p className="mt-3 text-[11px] leading-5 text-slate-400">
+            Note: these are illustrative grouped categories, not live Braintree SDK data. In production,
+            populate them from each transaction’s processor response code/text; exact decline wording can vary by processor.
+          </p>
+        </section>
+
+        {/* REGIONAL KPI EXPLORER: REGION + CHANNEL + PAYMENT METHOD */}
+        <section className="rounded-xl border border-slate-200 bg-white p-4">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <MapPinned size={17} className="text-blue-600" />
+                <h2 className="text-sm font-semibold text-slate-900">Regional Transaction Performance</h2>
+              </div>
+              <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-500">
+                Compare transaction volume by region, then narrow the view by channel and payment method.
+                These filters combine with the date and MID filters above.
+              </p>
+            </div>
+
+            <button
+              onClick={resetRegionalFilters}
+              className="inline-flex items-center gap-1.5 self-start rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-600 transition hover:border-blue-300 hover:bg-blue-50"
+            >
+              <RefreshCw size={13} />
+              Reset regional filters
+            </button>
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium text-slate-600">Region</span>
+              <select
+                value={regionFilter}
+                onChange={(e) => setRegionFilter(e.target.value)}
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-xs outline-none focus:border-blue-500"
+              >
+                <option>All regions</option>
+                {REGIONS.map((region) => <option key={region}>{region}</option>)}
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium text-slate-600">Channel</span>
+              <select
+                value={channelFilter}
+                onChange={(e) => setChannelFilter(e.target.value)}
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-xs outline-none focus:border-blue-500"
+              >
+                <option>All channels</option>
+                {CHANNELS.map((channel) => <option key={channel}>{channel}</option>)}
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium text-slate-600">Payment method</span>
+              <select
+                value={paymentMethodFilter}
+                onChange={(e) => setPaymentMethodFilter(e.target.value)}
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-xs outline-none focus:border-blue-500"
+              >
+                <option>All methods</option>
+                {PAYMENT_METHODS.map((method) => <option key={method}>{method}</option>)}
+              </select>
+            </label>
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="rounded-xl bg-blue-50 p-3">
+              <p className="text-xs text-blue-700">Filtered Transaction Volume</p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums text-blue-900">{number(regionalSummary.total)}</p>
+            </div>
+            <div className="rounded-xl bg-emerald-50 p-3">
+              <p className="text-xs text-emerald-700">Filtered Success Rate</p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums text-emerald-900">{pct(regionalSummary.success, regionalSummary.total)}</p>
+            </div>
+            <div className="rounded-xl bg-rose-50 p-3">
+              <p className="text-xs text-rose-700">Filtered Decline Rate</p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums text-rose-900">{pct(regionalSummary.declined, regionalSummary.total)}</p>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-xl border border-slate-100 p-3 sm:p-4">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-800">Transaction Volume by Region</h3>
+                <p className="mt-1 text-xs text-slate-500">Bar length represents total transactions; successful and declined amounts are shown below each bar.</p>
+              </div>
+              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] text-slate-600">
+                {regionalData.length} matching record(s)
+              </span>
+            </div>
+
+            <div className="space-y-5">
+              {regionalChartData.map((item) => {
+                const share = (item.total / maxRegionalTotal) * 100;
+                return (
+                  <div key={item.region}>
+                    <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <span className="font-medium text-slate-700">{item.region}</span>
+                      <span className="font-semibold tabular-nums text-slate-900">{number(item.total)}</span>
+                    </div>
+                    <div className="h-3 overflow-hidden rounded-full bg-slate-100">
+                      <div
+                        className="h-full rounded-full bg-blue-500 transition-all duration-300"
+                        style={{ width: `${share}%` }}
+                      />
+                    </div>
+                    <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-500">
+                      <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-emerald-500" />Success: {number(item.success)} ({pct(item.success, item.total)})</span>
+                      <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-rose-500" />Declined: {number(item.declined)} ({pct(item.declined, item.total)})</span>
+                    </div>
+                  </div>
+                );
+              })}
+              {regionalChartData.every((item) => item.total === 0) && (
+                <p className="py-8 text-center text-xs text-slate-500">
+                  No regional transactions match these filters. Try another channel or payment method.
+                </p>
+              )}
             </div>
           </div>
         </section>

@@ -98,7 +98,7 @@ if (
         {/* LOGO */}
         <div className="mb-8 flex flex-col items-center text-center">
           <img
-            src="/logo.png"
+            src="/llogo.png"
             alt="Payments Logo"
             className="mb-5 h-14 max-w-[180px] object-contain"
           />

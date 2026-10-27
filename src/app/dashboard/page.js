@@ -72,7 +72,7 @@ export default function Dashboard() {
             className="mb-7 flex cursor-pointer items-center gap-3 px-2"
           >
             <img
-              src="/logo.png"
+              src="/llogo.png"
               alt="Logo"
               className="h-9 w-auto object-contain transition-transform duration-300 hover:scale-105"
             />

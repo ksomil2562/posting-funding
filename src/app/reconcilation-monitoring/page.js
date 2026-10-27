@@ -13,18 +13,34 @@ import {
   Search,
   CalendarDays,
   ChevronDown,
+  ChevronUp,
   X,
   Filter,
   RefreshCw,
+  Smartphone,
+  Globe,
+  CreditCard,
 } from "lucide-react";
 
-// Illustrative data only. Replace with your real API response.
+const CHANNELS = ["iOS", "Android", "Web"];
+
+const PAYMENT_METHODS = [
+  "Bank",
+  "Card",
+  "PayPal",
+  "Venmo",
+  "Apple Pay",
+  "GPay",
+];
+
+// Illustrative data. Replace with your API response when integrating.
 const sampleData = [
   {
     mid: "MID-1001",
+    date: "2026-10-02",
     total: 12500,
     success: 11900,
-    failed: 600,
+    declined: 600,
     refunds: 180,
     chargebacks: 12,
     ecpReturns: 8,
@@ -38,9 +54,10 @@ const sampleData = [
   },
   {
     mid: "MID-1002",
+    date: "2026-10-03",
     total: 9800,
     success: 9212,
-    failed: 588,
+    declined: 588,
     refunds: 145,
     chargebacks: 7,
     ecpReturns: 11,
@@ -49,14 +66,15 @@ const sampleData = [
     postLogin: 3700,
     region: "North America",
     paymentMethod: "Bank",
-    channel: "IVR",
+    channel: "iOS",
     accountType: "Commercial",
   },
   {
     mid: "MID-1003",
+    date: "2026-10-04",
     total: 7600,
     success: 7144,
-    failed: 456,
+    declined: 456,
     refunds: 96,
     chargebacks: 4,
     ecpReturns: 5,
@@ -64,15 +82,16 @@ const sampleData = [
     preLogin: 4800,
     postLogin: 2800,
     region: "Europe",
-    paymentMethod: "Card",
-    channel: "Mobile",
+    paymentMethod: "Apple Pay",
+    channel: "iOS",
     accountType: "Residential",
   },
   {
     mid: "MID-1004",
+    date: "2026-10-05",
     total: 6400,
     success: 6080,
-    failed: 320,
+    declined: 320,
     refunds: 110,
     chargebacks: 3,
     ecpReturns: 6,
@@ -84,12 +103,89 @@ const sampleData = [
     channel: "Web",
     accountType: "Commercial",
   },
+  {
+    mid: "MID-1005",
+    date: "2026-10-06",
+    total: 8700,
+    success: 8178,
+    declined: 522,
+    refunds: 120,
+    chargebacks: 6,
+    ecpReturns: 7,
+    tokenized: 5700,
+    preLogin: 5200,
+    postLogin: 3500,
+    region: "Asia Pacific",
+    paymentMethod: "Venmo",
+    channel: "Android",
+    accountType: "Residential",
+  },
+  {
+    mid: "MID-1006",
+    date: "2026-10-07",
+    total: 9200,
+    success: 8650,
+    declined: 550,
+    refunds: 135,
+    chargebacks: 5,
+    ecpReturns: 9,
+    tokenized: 6200,
+    preLogin: 5700,
+    postLogin: 3500,
+    region: "Asia Pacific",
+    paymentMethod: "GPay",
+    channel: "Android",
+    accountType: "Commercial",
+  },
 ];
+
+const number = (value) =>
+  Number(value || 0).toLocaleString("en-US");
 
 const pct = (value, total) =>
   total ? `${((value / total) * 100).toFixed(1)}%` : "—";
 
-const number = (value) => value.toLocaleString("en-US");
+const ratio = (value, total) =>
+  total ? (value / total) * 100 : 0;
+
+const formatDate = (date) => {
+  if (!date) return "";
+  return new Date(`${date}T12:00:00`).toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
+
+const CHANNEL_STYLES = {
+  iOS: {
+    color: "bg-blue-500",
+    light: "bg-blue-50",
+    text: "text-blue-700",
+    icon: Smartphone,
+  },
+  Android: {
+    color: "bg-emerald-500",
+    light: "bg-emerald-50",
+    text: "text-emerald-700",
+    icon: Smartphone,
+  },
+  Web: {
+    color: "bg-violet-500",
+    light: "bg-violet-50",
+    text: "text-violet-700",
+    icon: Globe,
+  },
+};
+
+const PAYMENT_STYLES = {
+  Bank: "bg-amber-50 text-amber-700",
+  Card: "bg-blue-50 text-blue-700",
+  PayPal: "bg-indigo-50 text-indigo-700",
+  Venmo: "bg-sky-50 text-sky-700",
+  "Apple Pay": "bg-slate-100 text-slate-700",
+  GPay: "bg-emerald-50 text-emerald-700",
+};
 
 export default function TransactionHealthReport() {
   const router = useRouter();
@@ -99,63 +195,109 @@ export default function TransactionHealthReport() {
   const [midSearch, setMidSearch] = useState("");
   const [tableSearch, setTableSearch] = useState("");
   const [midFilterOpen, setMidFilterOpen] = useState(false);
-  const [period, setPeriod] = useState("30 days");
 
-  // The applied selection controls KPIs and table data.
-  const filteredData = useMemo(
-    () =>
-      sampleData.filter(
-        (row) =>
-          selectedMids.length === 0 ||
-          selectedMids.includes(row.mid)
-      ),
-    [selectedMids]
-  );
+  const [startDate, setStartDate] = useState("2026-10-02");
+  const [endDate, setEndDate] = useState("2026-10-07");
 
-  // Table search does not change the overall KPI totals.
-  const tableData = useMemo(
-    () =>
-      filteredData.filter((row) =>
-        [
-          row.mid,
-          row.region,
-          row.paymentMethod,
-          row.channel,
-          row.accountType,
-        ]
-          .join(" ")
-          .toLowerCase()
-          .includes(tableSearch.toLowerCase())
-      ),
-    [filteredData, tableSearch]
-  );
+  const [sortConfig, setSortConfig] = useState({
+    key: "total",
+    direction: "desc",
+  });
 
-  const totals = useMemo(
-    () =>
-      filteredData.reduce(
-        (acc, row) => {
-          Object.keys(acc).forEach((key) => {
-            acc[key] += row[key];
-          });
-          return acc;
-        },
-        {
-          total: 0,
-          success: 0,
-          failed: 0,
-          refunds: 0,
-          chargebacks: 0,
-          ecpReturns: 0,
-          tokenized: 0,
-          preLogin: 0,
-          postLogin: 0,
-        }
-      ),
-    [filteredData]
-  );
+  const allMids = selectedMids.length === 0;
+
+  // Date and MID filters affect the dashboard metrics and charts.
+  const filteredData = useMemo(() => {
+    return sampleData.filter((row) => {
+      const matchesMID =
+        selectedMids.length === 0 || selectedMids.includes(row.mid);
+
+      const matchesStart = !startDate || row.date >= startDate;
+      const matchesEnd = !endDate || row.date <= endDate;
+
+      return matchesMID && matchesStart && matchesEnd;
+    });
+  }, [selectedMids, startDate, endDate]);
+
+  // Search filters only the table, not the overall KPIs.
+  const tableData = useMemo(() => {
+    const query = tableSearch.trim().toLowerCase();
+
+    return filteredData.filter((row) =>
+      [
+        row.mid,
+        row.date,
+        row.region,
+        row.paymentMethod,
+        row.channel,
+        row.accountType,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(query)
+    );
+  }, [filteredData, tableSearch]);
+
+  const totals = useMemo(() => {
+    return filteredData.reduce(
+      (acc, row) => {
+        acc.total += row.total;
+        acc.success += row.success;
+        acc.declined += row.declined;
+        acc.refunds += row.refunds;
+        acc.chargebacks += row.chargebacks;
+        acc.ecpReturns += row.ecpReturns;
+        acc.tokenized += row.tokenized;
+        acc.preLogin += row.preLogin;
+        acc.postLogin += row.postLogin;
+
+        return acc;
+      },
+      {
+        total: 0,
+        success: 0,
+        declined: 0,
+        refunds: 0,
+        chargebacks: 0,
+        ecpReturns: 0,
+        tokenized: 0,
+        preLogin: 0,
+        postLogin: 0,
+      }
+    );
+  }, [filteredData]);
 
   const nonTokenized = Math.max(0, totals.total - totals.tokenized);
-  const allMids = selectedMids.length === 0;
+
+  // Aggregate payment-method distribution.
+  const paymentDistribution = useMemo(() => {
+    const result = Object.fromEntries(
+      PAYMENT_METHODS.map((method) => [method, 0])
+    );
+
+    filteredData.forEach((row) => {
+      if (result[row.paymentMethod] !== undefined) {
+        result[row.paymentMethod] += row.total;
+      }
+    });
+
+    return result;
+  }, [filteredData]);
+
+  // Aggregate channel distribution, including Android.
+  const channelDistribution = useMemo(() => {
+    const result = Object.fromEntries(
+      CHANNELS.map((channel) => [channel, 0])
+    );
+
+    filteredData.forEach((row) => {
+      if (result[row.channel] !== undefined) {
+        result[row.channel] += row.total;
+      }
+    });
+
+    return result;
+  }, [filteredData]);
 
   const metrics = [
     {
@@ -163,71 +305,209 @@ export default function TransactionHealthReport() {
       value: number(totals.total),
       icon: Activity,
       color: "text-blue-600",
+      bg: "bg-blue-50",
     },
     {
       label: "Success Rate",
       value: pct(totals.success, totals.total),
       icon: CheckCircle2,
       color: "text-emerald-600",
+      bg: "bg-emerald-50",
     },
     {
-      label: "Failure Rate",
-      value: pct(totals.failed, totals.total),
+      label: "Decline Rate",
+      value: pct(totals.declined, totals.total),
       icon: XCircle,
       color: "text-rose-600",
+      bg: "bg-rose-50",
     },
     {
       label: "Refund Rate",
       value: pct(totals.refunds, totals.total),
       icon: RotateCcw,
       color: "text-amber-600",
+      bg: "bg-amber-50",
     },
     {
-      label: "Chargeback Count",
+      label: "Chargebacks",
       value: number(totals.chargebacks),
       icon: ShieldAlert,
       color: "text-orange-600",
+      bg: "bg-orange-50",
     },
     {
-      label: "ECP Return Count",
+      label: "ECP Returns",
       value: number(totals.ecpReturns),
       icon: Wallet,
       color: "text-violet-600",
+      bg: "bg-violet-50",
     },
     {
       label: "Tokenized Payments",
       value: pct(totals.tokenized, totals.total),
       icon: CheckCircle2,
       color: "text-cyan-600",
+      bg: "bg-cyan-50",
     },
     {
       label: "Non-Tokenized Payments",
       value: pct(nonTokenized, totals.total),
-      icon: Activity,
-      color: "text-slate-500",
+      icon: CreditCard,
+      color: "text-slate-600",
+      bg: "bg-slate-100",
     },
   ];
 
+  // Every table column is sortable.
   const columns = [
-    ["MID", (r) => r.mid],
-    ["Total", (r) => number(r.total)],
-    ["Success", (r) => number(r.success)],
-    ["Success %", (r) => pct(r.success, r.total)],
-    ["Failed", (r) => number(r.failed)],
-    ["Failure %", (r) => pct(r.failed, r.total)],
-    ["Refunds", (r) => number(r.refunds)],
-    ["Refund %", (r) => pct(r.refunds, r.total)],
-    ["Chargebacks", (r) => number(r.chargebacks)],
-    ["ECP Returns", (r) => number(r.ecpReturns)],
-    ["Tokenized %", (r) => pct(r.tokenized, r.total)],
-    ["Non-Tokenized %", (r) => pct(r.total - r.tokenized, r.total)],
-    ["Pre-Login %", (r) => pct(r.preLogin, r.total)],
-    ["Post-Login %", (r) => pct(r.postLogin, r.total)],
-    ["Region", (r) => r.region],
-    ["Payment Method", (r) => r.paymentMethod],
-    ["Channel", (r) => r.channel],
-    ["Account Type", (r) => r.accountType],
+    {
+      key: "mid",
+      label: "MID",
+      value: (r) => r.mid,
+      sortValue: (r) => r.mid,
+    },
+    {
+      key: "date",
+      label: "Date",
+      value: (r) => formatDate(r.date),
+      sortValue: (r) => r.date,
+    },
+    {
+      key: "total",
+      label: "Total",
+      value: (r) => number(r.total),
+      sortValue: (r) => r.total,
+    },
+    {
+      key: "success",
+      label: "Success",
+      value: (r) => number(r.success),
+      sortValue: (r) => r.success,
+    },
+    {
+      key: "successRate",
+      label: "Success %",
+      value: (r) => pct(r.success, r.total),
+      sortValue: (r) => ratio(r.success, r.total),
+    },
+    {
+      key: "declined",
+      label: "Declined",
+      value: (r) => number(r.declined),
+      sortValue: (r) => r.declined,
+    },
+    {
+      key: "declineRate",
+      label: "Decline %",
+      value: (r) => pct(r.declined, r.total),
+      sortValue: (r) => ratio(r.declined, r.total),
+    },
+    {
+      key: "refunds",
+      label: "Refunds",
+      value: (r) => number(r.refunds),
+      sortValue: (r) => r.refunds,
+    },
+    {
+      key: "refundRate",
+      label: "Refund %",
+      value: (r) => pct(r.refunds, r.total),
+      sortValue: (r) => ratio(r.refunds, r.total),
+    },
+    {
+      key: "chargebacks",
+      label: "Chargebacks",
+      value: (r) => number(r.chargebacks),
+      sortValue: (r) => r.chargebacks,
+    },
+    {
+      key: "ecpReturns",
+      label: "ECP Returns",
+      value: (r) => number(r.ecpReturns),
+      sortValue: (r) => r.ecpReturns,
+    },
+    {
+      key: "tokenized",
+      label: "Tokenized %",
+      value: (r) => pct(r.tokenized, r.total),
+      sortValue: (r) => ratio(r.tokenized, r.total),
+    },
+    {
+      key: "nonTokenized",
+      label: "Non-Tokenized %",
+      value: (r) => pct(r.total - r.tokenized, r.total),
+      sortValue: (r) => ratio(r.total - r.tokenized, r.total),
+    },
+    {
+      key: "preLogin",
+      label: "Pre-Login %",
+      value: (r) => pct(r.preLogin, r.total),
+      sortValue: (r) => ratio(r.preLogin, r.total),
+    },
+    {
+      key: "postLogin",
+      label: "Post-Login %",
+      value: (r) => pct(r.postLogin, r.total),
+      sortValue: (r) => ratio(r.postLogin, r.total),
+    },
+    {
+      key: "region",
+      label: "Region",
+      value: (r) => r.region,
+      sortValue: (r) => r.region,
+    },
+    {
+      key: "paymentMethod",
+      label: "Payment Method",
+      value: (r) => r.paymentMethod,
+      sortValue: (r) => r.paymentMethod,
+    },
+    {
+      key: "channel",
+      label: "Channel",
+      value: (r) => r.channel,
+      sortValue: (r) => r.channel,
+    },
+    {
+      key: "accountType",
+      label: "Account Type",
+      value: (r) => r.accountType,
+      sortValue: (r) => r.accountType,
+    },
   ];
+
+  const sortedTableData = useMemo(() => {
+    const selectedColumn = columns.find(
+      (column) => column.key === sortConfig.key
+    );
+
+    if (!selectedColumn) return tableData;
+
+    return [...tableData].sort((a, b) => {
+      const first = selectedColumn.sortValue(a);
+      const second = selectedColumn.sortValue(b);
+
+      let comparison;
+
+      if (typeof first === "number" && typeof second === "number") {
+        comparison = first - second;
+      } else {
+        comparison = String(first).localeCompare(String(second));
+      }
+
+      return sortConfig.direction === "asc" ? comparison : -comparison;
+    });
+  }, [tableData, sortConfig]);
+
+  const handleSort = (key) => {
+    setSortConfig((current) => ({
+      key,
+      direction:
+        current.key === key && current.direction === "asc"
+          ? "desc"
+          : "asc",
+    }));
+  };
 
   const matchingMids = sampleData.filter((row) =>
     row.mid.toLowerCase().includes(midSearch.toLowerCase())
@@ -254,10 +534,35 @@ export default function TransactionHealthReport() {
     setMidFilterOpen(false);
   };
 
+  const resetFilters = () => {
+    setSelectedMids([]);
+    setPendingMids([]);
+    setStartDate("");
+    setEndDate("");
+    setTableSearch("");
+  };
+
+  const setQuickDateRange = (days) => {
+    const end = new Date();
+    const start = new Date();
+
+    start.setDate(end.getDate() - (days - 1));
+
+    const toLocalISO = (date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
+
+    setStartDate(toLocalISO(start));
+    setEndDate(toLocalISO(end));
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800">
       {/* HEADER */}
-      <header className="sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-slate-200 bg-white/95 px-5 py-4 backdrop-blur md:px-8">
+      <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur md:px-6">
         <div className="flex items-center gap-3">
           <button
             onClick={() => router.push("/dashboard")}
@@ -268,74 +573,90 @@ export default function TransactionHealthReport() {
           </button>
 
           <div>
-            <h1 className="text-lg font-semibold tracking-tight text-slate-900 md:text-xl">
+            <h1 className="text-lg font-semibold tracking-tight text-slate-900">
               Transaction Health
             </h1>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="text-xs text-slate-500">
               Payment Monitoring / Health Report
             </p>
           </div>
         </div>
 
         <div className="hidden items-center gap-2 text-sm text-slate-500 sm:flex">
-          <span className="h-2 w-2 rounded-full bg-blue-600" />
+          <span className="h-2 w-2 rounded-full bg-emerald-500" />
           {allMids ? "All MIDs" : `${selectedMids.length} selected`}
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1600px] space-y-7 p-5 md:p-8">
+      <main className="mx-auto max-w-[1700px] space-y-5 p-4 md:p-6">
         {/* FILTER TOOLBAR */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <section className="rounded-xl border border-slate-200 bg-white p-4">
+          <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
             <div>
-              <h2 className="text-base font-semibold text-slate-900">
+              <h2 className="text-sm font-semibold text-slate-900">
                 Transaction Health Overview
               </h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Filter by MID to compare individual or combined performance.
+              <p className="mt-1 text-xs text-slate-500">
+                Filter by date range and MID to review transaction performance.
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              {/* PERIOD */}
-              <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3">
-                <CalendarDays size={16} className="text-slate-400" />
-                <select
-                  value={period}
-                  onChange={(e) => setPeriod(e.target.value)}
-                  aria-label="Reporting period"
-                  className="bg-transparent py-3 text-sm text-slate-700 outline-none"
-                >
-                  <option>Today</option>
-                  <option>7 days</option>
-                  <option>30 days</option>
-                  <option>90 days</option>
-                </select>
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2">
+                <CalendarDays size={15} className="shrink-0 text-slate-400" />
+                <span className="text-xs text-slate-500">From</span>
+                <input
+                  type="date"
+                  value={startDate}
+                  max={endDate || undefined}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  aria-label="Start date"
+                  className="w-[125px] bg-transparent text-xs text-slate-700 outline-none"
+                />
               </label>
+
+              <label className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2">
+                <span className="text-xs text-slate-500">To</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  min={startDate || undefined}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  aria-label="End date"
+                  className="w-[125px] bg-transparent text-xs text-slate-700 outline-none"
+                />
+              </label>
+
+              <button
+                onClick={() => setQuickDateRange(7)}
+                className="rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-600 transition hover:border-blue-300 hover:bg-blue-50"
+              >
+                Last 7 days
+              </button>
+
+              <button
+                onClick={() => setQuickDateRange(30)}
+                className="rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-600 transition hover:border-blue-300 hover:bg-blue-50"
+              >
+                Last 30 days
+              </button>
 
               {/* MID SELECTOR */}
               <div className="relative">
                 <button
                   onClick={openMidFilter}
                   aria-expanded={midFilterOpen}
-                  className={`flex min-w-56 items-center justify-between gap-4 rounded-xl border px-4 py-3 text-sm transition ${
+                  className={`flex min-w-[155px] items-center justify-between gap-3 rounded-lg border px-3 py-2 text-xs transition ${
                     midFilterOpen
-                      ? "border-blue-500 bg-blue-50"
+                      ? "border-blue-400 bg-blue-50"
                       : "border-slate-200 bg-white hover:border-blue-300"
                   }`}
                 >
                   <span className="flex items-center gap-2">
-                    <Filter size={16} className="text-blue-600" />
-                    {allMids
-                      ? "All MIDs"
-                      : `${selectedMids.length} MIDs selected`}
+                    <Filter size={14} className="text-blue-600" />
+                    {allMids ? "All MIDs" : `${selectedMids.length} selected`}
                   </span>
-                  <ChevronDown
-                    size={16}
-                    className={`text-slate-400 transition ${
-                      midFilterOpen ? "rotate-180" : ""
-                    }`}
-                  />
+                  <ChevronDown size={14} className="text-slate-400" />
                 </button>
 
                 {midFilterOpen && (
@@ -346,72 +667,34 @@ export default function TransactionHealthReport() {
                       onClick={() => setMidFilterOpen(false)}
                     />
 
-                    <div className="absolute right-0 top-full z-30 mt-2 w-80 max-w-[90vw] rounded-2xl border border-slate-200 bg-white p-4 shadow-xl">
+                    <div className="absolute right-0 top-full z-30 mt-2 w-72 rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
                       <div className="mb-3 flex items-center justify-between">
-                        <div>
-                          <h3 className="text-sm font-semibold text-slate-900">
-                            Select MIDs
-                          </h3>
-                          <p className="mt-1 text-xs text-slate-500">
-                            Choose one or more
-                          </p>
-                        </div>
+                        <h3 className="text-sm font-semibold text-slate-800">
+                          Select MIDs
+                        </h3>
                         <button
-                          onClick={() => setMidFilterOpen(false)}
-                          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                          aria-label="Close"
+                          onClick={() => setPendingMids([])}
+                          className="text-xs text-blue-600 hover:text-blue-800"
                         >
-                          <X size={17} />
+                          Clear selection
                         </button>
                       </div>
 
-                      {/* SEARCH INSIDE SELECTOR */}
-                      <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3">
-                        <Search size={16} className="text-slate-400" />
+                      <div className="mb-3 flex items-center gap-2 rounded-lg border border-slate-200 px-3">
+                        <Search size={14} className="text-slate-400" />
                         <input
-                          type="text"
                           value={midSearch}
                           onChange={(e) => setMidSearch(e.target.value)}
                           placeholder="Search MID..."
-                          className="min-w-0 flex-1 bg-transparent py-3 text-sm text-slate-800 outline-none placeholder:text-slate-400"
+                          className="w-full py-2 text-xs outline-none"
                         />
-                        {midSearch && (
-                          <button
-                            onClick={() => setMidSearch("")}
-                            aria-label="Clear search"
-                          >
-                            <X size={14} className="text-slate-400" />
-                          </button>
-                        )}
                       </div>
 
-                      {/* SELECT ALL / CLEAR */}
-                      <div className="flex items-center justify-between py-3 text-xs">
-                        <span className="text-slate-500">
-                          {pendingMids.length} selected
-                        </span>
-                        <button
-                          onClick={() =>
-                            setPendingMids(
-                              pendingMids.length === sampleData.length
-                                ? []
-                                : sampleData.map((row) => row.mid)
-                            )
-                          }
-                          className="text-blue-600 hover:text-blue-800"
-                        >
-                          {pendingMids.length === sampleData.length
-                            ? "Clear all"
-                            : "Select all"}
-                        </button>
-                      </div>
-
-                      {/* MID CHECKBOXES */}
-                      <div className="max-h-56 space-y-1 overflow-y-auto">
+                      <div className="max-h-48 space-y-1 overflow-y-auto">
                         {matchingMids.map((row) => (
                           <label
                             key={row.mid}
-                            className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-3 transition hover:bg-blue-50"
+                            className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-xs hover:bg-slate-50"
                           >
                             <input
                               type="checkbox"
@@ -419,49 +702,19 @@ export default function TransactionHealthReport() {
                               onChange={(e) =>
                                 togglePendingMid(row.mid, e.target.checked)
                               }
-                              className="h-4 w-4 accent-blue-600"
+                              className="accent-blue-600"
                             />
-                            <span className="flex-1 text-sm text-slate-700">
-                              {row.mid}
-                            </span>
-                            <span className="text-xs text-slate-500">
-                              {number(row.total)}
-                            </span>
+                            <span>{row.mid}</span>
                           </label>
                         ))}
-
-                        {matchingMids.length === 0 && (
-                          <p className="py-6 text-center text-sm text-slate-500">
-                            No matching MIDs found.
-                          </p>
-                        )}
                       </div>
 
-                      {/* APPLY */}
-                      <div className="mt-3 flex gap-2 border-t border-slate-200 pt-4">
-                        <button
-                          onClick={() => {
-                            setPendingMids([]);
-                            setSelectedMids([]);
-                            setMidFilterOpen(false);
-                          }}
-                          className="rounded-lg border border-slate-200 px-3 py-2.5 text-xs text-slate-600 hover:bg-slate-50"
-                        >
-                          Reset
-                        </button>
-                        <button
-                          onClick={() => setMidFilterOpen(false)}
-                          className="flex-1 rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-50"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={applyMidFilter}
-                          className="flex-1 rounded-lg bg-blue-600 px-3 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700"
-                        >
-                          Apply
-                        </button>
-                      </div>
+                      <button
+                        onClick={applyMidFilter}
+                        className="mt-3 w-full rounded-lg bg-blue-600 py-2 text-xs font-medium text-white transition hover:bg-blue-700"
+                      >
+                        Apply Filter
+                      </button>
                     </div>
                   </>
                 )}
@@ -469,14 +722,17 @@ export default function TransactionHealthReport() {
             </div>
           </div>
 
-          {/* APPLIED MID CHIPS */}
-          <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-4">
-            <span className="mr-1 text-xs text-slate-500">
-              Active filter:
+          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+            <span className="text-xs text-slate-500">Active filters:</span>
+
+            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs text-blue-700">
+              {startDate ? formatDate(startDate) : "Any start date"}
+              {" — "}
+              {endDate ? formatDate(endDate) : "Any end date"}
             </span>
 
             {allMids ? (
-              <span className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-xs text-blue-700">
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">
                 All MIDs
               </span>
             ) : (
@@ -488,38 +744,35 @@ export default function TransactionHealthReport() {
                       previous.filter((item) => item !== mid)
                     )
                   }
-                  title={`Remove ${mid}`}
-                  className="flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs text-blue-700 transition hover:bg-blue-100"
+                  className="flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-xs text-blue-700 hover:bg-blue-100"
                 >
                   {mid}
-                  <X size={12} />
+                  <X size={11} />
                 </button>
               ))
             )}
 
-            {!allMids && (
-              <button
-                onClick={() => setSelectedMids([])}
-                className="ml-1 flex items-center gap-1 text-xs text-slate-500 hover:text-blue-700"
-              >
-                <RefreshCw size={12} />
-                Reset filters
-              </button>
-            )}
+            <button
+              onClick={resetFilters}
+              className="ml-auto flex items-center gap-1 text-xs text-slate-500 hover:text-blue-700"
+            >
+              <RefreshCw size={12} />
+              Reset filters
+            </button>
           </div>
         </section>
 
         {/* KPI CARDS */}
         <section>
-          <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+          <div className="mb-3 flex items-center justify-between">
             <div>
-              <h2 className="text-base font-semibold text-slate-900">
-                Overall transaction health
+              <h2 className="text-sm font-semibold text-slate-900">
+                Overall Transaction Health
               </h2>
               <p className="mt-1 text-xs text-slate-500">
                 {allMids
                   ? "Combined across all MIDs"
-                  : `Combined across ${selectedMids.length} selected MID(s)`}
+                  : `Combined across ${selectedMids.length} selected MIDs`}
               </p>
             </div>
             <span className="text-xs text-slate-500">
@@ -527,22 +780,24 @@ export default function TransactionHealthReport() {
             </span>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
             {metrics.map((metric) => {
               const Icon = metric.icon;
 
               return (
                 <div
                   key={metric.label}
-                  className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-200"
+                  className="rounded-xl border border-slate-200 bg-white p-3 transition hover:border-blue-200"
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm text-slate-500">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-xs leading-4 text-slate-500">
                       {metric.label}
                     </p>
-                    <Icon size={19} className={metric.color} />
+                    <span className={`rounded-lg p-1.5 ${metric.bg}`}>
+                      <Icon size={15} className={metric.color} />
+                    </span>
                   </div>
-                  <p className="mt-4 text-2xl font-semibold tracking-tight tabular-nums text-slate-900">
+                  <p className="mt-3 text-xl font-semibold tracking-tight tabular-nums text-slate-900">
                     {metric.value}
                   </p>
                 </div>
@@ -551,11 +806,12 @@ export default function TransactionHealthReport() {
           </div>
         </section>
 
-        {/* LOGIN AND EXCEPTIONS */}
-        <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        {/* DISTRIBUTION CHARTS */}
+        <section className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+          {/* LOGIN DISTRIBUTION */}
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
             <h3 className="text-sm font-semibold text-slate-900">
-              Login distribution
+              Login Distribution
             </h3>
             <p className="mt-1 text-xs text-slate-500">
               Pre-login versus post-login transactions
@@ -566,7 +822,7 @@ export default function TransactionHealthReport() {
                 {
                   label: "Pre-Login",
                   value: totals.preLogin,
-                  color: "bg-blue-600",
+                  color: "bg-blue-500",
                 },
                 {
                   label: "Post-Login",
@@ -575,24 +831,23 @@ export default function TransactionHealthReport() {
                 },
               ].map((item) => (
                 <div key={item.label}>
-                  <div className="mb-2 flex justify-between gap-3 text-sm">
+                  <div className="mb-2 flex justify-between gap-3 text-xs">
                     <span className="text-slate-600">{item.label}</span>
-                    <span className="text-slate-500">
-                      {number(item.value)} · {pct(item.value, totals.total)}
+                    <span className="font-medium text-slate-800">
+                      {number(item.value)}{" "}
+                      <span className="font-normal text-slate-400">
+                        ({pct(item.value, totals.total)})
+                      </span>
                     </span>
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-slate-100">
                     <div
                       className={`h-full rounded-full ${item.color}`}
                       style={{
-                        width: `${
-                          totals.total
-                            ? Math.min(
-                                100,
-                                (item.value / totals.total) * 100
-                              )
-                            : 0
-                        }%`,
+                        width: `${Math.min(
+                          100,
+                          ratio(item.value, totals.total)
+                        )}%`,
                       }}
                     />
                   </div>
@@ -601,124 +856,245 @@ export default function TransactionHealthReport() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          {/* PAYMENT METHOD DISTRIBUTION */}
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
             <h3 className="text-sm font-semibold text-slate-900">
-              Transaction exceptions
+              Payment Method Distribution
             </h3>
             <p className="mt-1 text-xs text-slate-500">
-              Refunds, chargebacks and ECP returns
+              Transaction volume by payment method
             </p>
 
-            <div className="mt-5 divide-y divide-slate-100">
-              {[
-                {
-                  label: "Refunds",
-                  value: totals.refunds,
-                  color: "text-amber-600",
-                },
-                {
-                  label: "Chargebacks",
-                  value: totals.chargebacks,
-                  color: "text-orange-600",
-                },
-                {
-                  label: "ECP Returns",
-                  value: totals.ecpReturns,
-                  color: "text-violet-600",
-                },
-              ].map((item) => (
-                <div
-                  key={item.label}
-                  className="flex items-center justify-between py-3"
+            <div className="mt-4 space-y-3">
+              {PAYMENT_METHODS.map((method, index) => {
+                const value = paymentDistribution[method] || 0;
+                const colors = [
+                  "bg-blue-500",
+                  "bg-emerald-500",
+                  "bg-indigo-500",
+                  "bg-sky-500",
+                  "bg-slate-500",
+                  "bg-amber-500",
+                ];
+
+                return (
+                  <div key={method}>
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <span
+                        className={`rounded-md px-2 py-1 text-[11px] font-medium ${
+                          PAYMENT_STYLES[method] ||
+                          "bg-slate-100 text-slate-600"
+                        }`}
+                      >
+                        {method}
+                      </span>
+                      <span className="text-xs font-medium text-slate-700">
+                        {number(value)}
+                        <span className="ml-1 text-slate-400">
+                          ({pct(value, totals.total)})
+                        </span>
+                      </span>
+                    </div>
+
+                    <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
+                      <div
+                        className={`h-full rounded-full ${colors[index]}`}
+                        style={{
+                          width: `${Math.min(
+                            100,
+                            ratio(value, totals.total)
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* CHANNEL DISTRIBUTION */}
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <h3 className="text-sm font-semibold text-slate-900">
+              Channel Distribution
+            </h3>
+            <p className="mt-1 text-xs text-slate-500">
+              Transaction volume by channel
+            </p>
+
+            <div className="mt-5 space-y-5">
+              {CHANNELS.map((channel) => {
+                const value = channelDistribution[channel] || 0;
+                const style = CHANNEL_STYLES[channel];
+                const Icon = style.icon;
+
+                return (
+                  <div key={channel}>
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <span className={`rounded-lg p-2 ${style.light}`}>
+                          <Icon size={16} className={style.text} />
+                        </span>
+                        <span className="text-sm font-medium text-slate-700">
+                          {channel}
+                        </span>
+                      </div>
+
+                      <div className="text-right">
+                        <p className="text-sm font-semibold text-slate-900">
+                          {number(value)}
+                        </p>
+                        <p className="text-xs text-slate-400">
+                          {pct(value, totals.total)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                      <div
+                        className={`h-full rounded-full ${style.color} transition-all duration-300`}
+                        style={{
+                          width: `${Math.min(
+                            100,
+                            ratio(value, totals.total)
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
+              {CHANNELS.map((channel) => (
+                <span
+                  key={channel}
+                  className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${CHANNEL_STYLES[channel].light} ${CHANNEL_STYLES[channel].text}`}
                 >
-                  <span className="text-sm text-slate-500">
-                    {item.label}
-                  </span>
-                  <span className={`text-sm font-semibold ${item.color}`}>
-                    {number(item.value)}
-                  </span>
-                </div>
+                  {channel}
+                </span>
               ))}
             </div>
           </div>
         </section>
 
-        {/* MID TABLE */}
-        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-col gap-4 border-b border-slate-200 p-5 md:flex-row md:items-center md:justify-between">
+        {/* MID-WISE TRANSACTION TABLE */}
+        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <div className="flex flex-col gap-3 border-b border-slate-200 p-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <h2 className="text-base font-semibold text-slate-900">
-                MID-wise transaction details
+              <h2 className="text-sm font-semibold text-slate-900">
+                MID-wise Transaction Details
               </h2>
               <p className="mt-1 text-xs text-slate-500">
-                Individual performance for the applied MIDs
+                Select any column heading to sort ascending or descending.
               </p>
             </div>
 
-            <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3">
-              <Search size={16} className="text-slate-400" />
+            <label className="flex items-center gap-2 rounded-lg border border-slate-200 px-3">
+              <Search size={15} className="text-slate-400" />
               <input
                 value={tableSearch}
                 onChange={(e) => setTableSearch(e.target.value)}
                 placeholder="Search table..."
-                className="w-full bg-transparent py-2.5 text-sm text-slate-800 outline-none placeholder:text-slate-400 md:w-48"
+                className="w-full bg-transparent py-2 text-xs outline-none placeholder:text-slate-400 md:w-52"
               />
               {tableSearch && (
                 <button
                   onClick={() => setTableSearch("")}
                   aria-label="Clear table search"
                 >
-                  <X size={14} className="text-slate-400" />
+                  <X size={13} className="text-slate-400" />
                 </button>
               )}
             </label>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1500px] border-collapse text-left text-sm">
-              <thead>
-                <tr className="bg-blue-50 text-xs text-slate-600">
-                  {columns.map(([heading]) => (
+            <table className="w-full min-w-[1700px] border-collapse text-left text-xs">
+              <thead className="sticky top-0 z-10 bg-slate-50">
+                <tr>
+                  {columns.map((column) => (
                     <th
-                      key={heading}
-                      className="whitespace-nowrap border-b border-slate-200 px-4 py-4 font-medium"
+                      key={column.key}
+                      className="whitespace-nowrap border-b border-slate-200 px-3 py-3 font-semibold text-slate-600"
                     >
-                      {heading}
+                      <button
+                        onClick={() => handleSort(column.key)}
+                        className="flex items-center gap-1.5 transition hover:text-blue-700"
+                      >
+                        {column.label}
+                        {sortConfig.key === column.key ? (
+                          sortConfig.direction === "asc" ? (
+                            <ChevronUp size={13} className="text-blue-600" />
+                          ) : (
+                            <ChevronDown
+                              size={13}
+                              className="text-blue-600"
+                            />
+                          )
+                        ) : (
+                          <ChevronDown
+                            size={12}
+                            className="text-slate-300"
+                          />
+                        )}
+                      </button>
                     </th>
                   ))}
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-slate-100">
-                {tableData.length > 0 ? (
-                  tableData.map((row) => (
+                {sortedTableData.length > 0 ? (
+                  sortedTableData.map((row) => (
                     <tr
-                      key={row.mid}
-                      className="transition-colors hover:bg-blue-50/50"
+                      key={`${row.mid}-${row.date}`}
+                      className="transition-colors hover:bg-blue-50/40"
                     >
-                      {columns.map(([heading, getValue]) => (
-                        <td
-                          key={heading}
-                          className={`whitespace-nowrap px-4 py-4 ${
-                            heading === "MID"
-                              ? "font-medium text-blue-700"
-                              : heading === "Success"
-                                ? "text-emerald-700"
-                                : heading === "Failed"
-                                  ? "text-rose-600"
-                                  : [
-                                      "Region",
-                                      "Payment Method",
-                                      "Channel",
-                                      "Account Type",
-                                    ].includes(heading)
-                                    ? "text-slate-500"
-                                    : "text-slate-700"
-                          }`}
-                        >
-                          {getValue(row)}
-                        </td>
-                      ))}
+                      {columns.map((column) => {
+                        let cellClass = "text-slate-700";
+
+                        if (column.key === "mid") {
+                          cellClass = "font-semibold text-blue-700";
+                        } else if (column.key === "success") {
+                          cellClass = "font-medium text-emerald-700";
+                        } else if (column.key === "declined") {
+                          cellClass = "font-medium text-rose-600";
+                        }
+
+                        return (
+                          <td
+                            key={column.key}
+                            className={`whitespace-nowrap px-3 py-3 ${cellClass}`}
+                          >
+                            {column.key === "channel" ? (
+                              <span
+                                className={`rounded-full px-2 py-1 text-[11px] font-medium ${
+                                  CHANNEL_STYLES[row.channel]?.light ||
+                                  "bg-slate-100"
+                                } ${
+                                  CHANNEL_STYLES[row.channel]?.text ||
+                                  "text-slate-600"
+                                }`}
+                              >
+                                {column.value(row)}
+                              </span>
+                            ) : column.key === "paymentMethod" ? (
+                              <span
+                                className={`rounded-full px-2 py-1 text-[11px] font-medium ${
+                                  PAYMENT_STYLES[row.paymentMethod] ||
+                                  "bg-slate-100 text-slate-600"
+                                }`}
+                              >
+                                {column.value(row)}
+                              </span>
+                            ) : (
+                              column.value(row)
+                            )}
+                          </td>
+                        );
+                      })}
                     </tr>
                   ))
                 ) : (
@@ -727,7 +1103,7 @@ export default function TransactionHealthReport() {
                       colSpan={columns.length}
                       className="px-4 py-12 text-center text-slate-500"
                     >
-                      No matching MIDs found.
+                      No transaction records match the selected filters.
                     </td>
                   </tr>
                 )}
@@ -735,15 +1111,16 @@ export default function TransactionHealthReport() {
             </table>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-5 py-4 text-xs text-slate-500">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 px-4 py-3 text-xs text-slate-500">
             <span>
-              Showing {tableData.length} of {filteredData.length} MID(s)
+              Showing {sortedTableData.length} of {filteredData.length} MID
+              record(s)
             </span>
             <span>Scroll horizontally to view all columns</span>
           </div>
         </section>
 
-        <p className="pb-2 text-center text-xs text-slate-400">
+        <p className="pb-1 text-center text-[11px] text-slate-400">
           Transaction Health Report · Payment Monitoring Platform
         </p>
       </main>
